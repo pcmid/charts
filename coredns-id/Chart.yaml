@@ -1,0 +1,18 @@
+apiVersion: v2
+name: coredns-id
+description: Custom coredns built by id
+home: https://charts.shabi.id/charts/coredns-id
+type: application
+version: 0.0.1
+appVersion: v0.0.1
+kubeVersion: ">=1.22.0-0"
+keywords:
+  - dns
+  - coredns
+  - privacy
+dependencies:
+  - name: common
+    repository: https://bjw-s.github.io/helm-charts
+    version: 1.4.0
+sources:
+  - https://github.com/pcmid/coredns-id
