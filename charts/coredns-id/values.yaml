@@ -11,7 +11,7 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Image tag
-  tag: v1.10.1-id.20230429100706
+  tag: v1.10.1-id.20230501080147
 
 args: ["-conf", "/etc/coredns/Corefile"]
 
