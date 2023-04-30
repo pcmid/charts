@@ -4,7 +4,7 @@ description: Custom coredns built by id
 home: https://charts.shabi.id/charts/coredns-id
 type: application
 version: 0.0.1
-appVersion: v0.0.1
+appVersion: v0.0.2
 kubeVersion: ">=1.22.0-0"
 keywords:
   - dns
