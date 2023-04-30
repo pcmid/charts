@@ -58,10 +58,6 @@ Corefile: |
       # reload 24h # unimplement
     }
 
-    dispatch . {
-      to tls://1.1.1.1@one.one.one.one tls://8.8.8.8@google.dns
-    }
-
     forward . /etc/resolv.conf
 
     cache 1024
