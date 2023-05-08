@@ -1,0 +1,22 @@
+apiVersion: v2
+name: atuin
+description: Magical shell history
+home: https://charts.shabi.id/charts/atuin
+type: application
+version: 0.0.1
+appVersion: v14.0.1
+kubeVersion: ">=1.22.0-0"
+keywords:
+  - atuin
+  - shell
+  - history
+dependencies:
+  - name: common
+    repository: https://bjw-s.github.io/helm-charts
+    version: 1.4.0
+  - name: postgresql
+    version: 12.4.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+sources:
+  - https://github.com/pcmid/atuin

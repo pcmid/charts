@@ -1,0 +1,20 @@
+{{/* Append the hardcoded settings */}}
+{{- define "atuin.harcodedValues" -}}
+
+{{- if .Values.postgresql.enabled }}
+{{- with .Values.postgresql }}
+env:
+  ATUIN_DATABASE_PASSWORD:
+    secretKeyRef:
+      name: {{ $.Release.Name }}-postgresql
+      key: {{ if eq "postgres" .auth.password }}postgres-{{ end }}password
+  ATUIN_DB_URI: postgres://{{ default "postgres" .auth.username }}:$(ATUIN_DATABASE_PASSWORD)@{{ $.Release.Name }}-postgresql/{{ .auth.database }}
+{{- end }}
+{{- end }}
+
+{{- end -}}
+{{- $_ := merge .Values (include "atuin.harcodedValues" . | fromYaml) -}}
+
+{{/* Render the templates */}}
+{{ include "bjw-s.common.loader.all" . }}
+

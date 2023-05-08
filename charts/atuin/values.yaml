@@ -1,0 +1,78 @@
+#
+# IMPORTANT NOTE
+#
+# This chart inherits from our common library chart. You can check the default values/options here:
+# https://github.com/bjw-s/helm-charts/blob/main/charts/library/common/values.yaml
+#
+
+image:
+  # -- Image repository
+  repository: ghcr.io/ellie/atuin
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag
+  tag: 14.0.1
+
+args: ["server", "start"]
+
+env:
+  #ATUIN_DB_URI: "postgres://atuin:atuin@postgres_host/atuin"
+  ATUIN_HOST: 0.0.0.0
+  ATUIN_PORT: "8888"
+  ATUIN_OPEN_REGISTRATION: "true"
+
+controller:
+  replicas: 1
+  strategy: RollingUpdate
+
+# -- Set the resource requests / limits for the main container.
+resources: {}
+  ## We usually recommend not to specify default resources and to leave this as a conscious
+  ## choice for the user. This also increases chances charts run on environments with little
+  ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+  ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+service:
+  # -- Configures settings for the http service.
+  # @default -- See [values.yaml](./values.yaml)
+  main:
+    enabled: true
+    ports:
+      http:
+        port: 8888
+
+ingress:
+  # -- Enable and configure ingress settings for the chart under this key.
+  # @default -- See [values.yaml](./values.yaml)
+  main:
+    enabled: false
+    # hosts:
+    #   - host: chart-example.local
+    #     paths:
+    #       - path: /
+    #         pathType: Prefix
+    #         service:
+    #           port: 8888
+    # tls: []
+
+# -- Enable and configure postgresql database subchart under this key.
+#    For more options see [postgresql chart documentation](https://github.com/bitnami/charts/tree/master/bitnami/postgresql)
+# @default -- See [values.yaml](./values.yaml)
+postgresql:
+  enabled: true
+  auth:
+    database: atuin
+    username: atuin
+    password: ""
+  primary:
+    persistence:
+      enabled: false
+      # storageClass: ""
+      # size: 8Gi
+
