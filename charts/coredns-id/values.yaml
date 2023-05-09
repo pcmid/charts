@@ -22,6 +22,12 @@ env:
 controller:
   strategy: RollingUpdate
 
+dnsPolicy: # ClusterFirst / Default / None
+
+dnsConfig: {}
+#   nameservers: 
+#   - 1.1.1.1
+
 service:
   # -- Configures settings for the DNS service.
   # @default -- See [values.yaml](./values.yaml)
