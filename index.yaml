@@ -30,6 +30,28 @@ entries:
   coredns-id:
   - apiVersion: v2
     appVersion: v1.10.1-v0.0.2
+    created: "2023-05-09T15:19:36.108711304Z"
+    dependencies:
+    - name: common
+      repository: https://bjw-s.github.io/helm-charts
+      version: 1.4.0
+    description: Custom coredns built by id
+    digest: 77f6d45c52f292407df53136bf7092249853b8d586085d99d0f6a61bf1e63def
+    home: https://charts.shabi.id/charts/coredns-id
+    keywords:
+    - dns
+    - coredns
+    - privacy
+    kubeVersion: '>=1.22.0-0'
+    name: coredns-id
+    sources:
+    - https://github.com/pcmid/coredns-id
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/coredns-id-0.0.3/coredns-id-0.0.3.tgz
+    version: 0.0.3
+  - apiVersion: v2
+    appVersion: v1.10.1-v0.0.2
     created: "2023-05-01T08:45:21.112962465Z"
     dependencies:
     - name: common
@@ -72,4 +94,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/coredns-id-0.0.1/coredns-id-0.0.1.tgz
     version: 0.0.1
-generated: "2023-05-08T07:59:23.849169117Z"
+generated: "2023-05-09T15:19:36.108731604Z"
