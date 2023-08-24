@@ -1,0 +1,193 @@
+{{- if .Values.gendkim.job.enabled }}
+{{- if .Values.gendkim.existingSecret }}
+{{- fail "Can't specify both dkim.job.enabled and dkim.existingSecret" }}
+{{- end }}
+{{- $name := printf "%s-gendkim-job" (include "dockermailserver.fullname" .) }}
+{{- $secretName := printf "%s-dkimkeys" (include "dockermailserver.fullname" .) }}
+{{- $configmapName := printf "%s-configs" (include "dockermailserver.fullname" .) }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    resourceNames:
+      - {{ $secretName }}
+      - {{ $configmapName }}
+    verbs:
+      - get
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "5"
+    {{- with .Values.gendkim.job.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+      labels:
+        {{- include "dockermailserver.labels" . | nindent 8 }}
+        app.kubernetes.io/component: gendkim-job
+    spec:
+      containers:
+        - command:
+          - sh
+          - -c
+          - |
+            echo "Generating dkim keys..."
+            /scripts/gendkim.sh gen {{ join " " (.Values.domains | uniq) }}
+          image: "{{ .Values.dockermailserver.image.name }}:{{ .Values.dockermailserver.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.dockermailserver.pullPolicy }}
+          name: gendkim-generate
+          securityContext:
+            {{- toYaml .Values.gendkim.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.gendkim.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            - mountPath: /scripts
+              name: scripts
+              readOnly: true
+            - mountPath: /keys
+              name: dkimkeys
+              readOnly: true
+            - mountPath: /configs
+              name: configs
+              readOnly: true
+        - command:
+          - sh
+          - -c
+          - |
+            printf "Checking rights to update secret... "
+            kubectl auth can-i update secret/${SECRET_NAME}
+            /scripts/gendkim.sh update
+          env:
+            - name: SECRET_NAME
+              value: {{ $secretName }}
+            - name: CONFIGMAP_NAME
+              value: {{ $configmapName }}
+          image: "{{ .Values.gendkim.job.publishImage.repository }}:{{ .Values.gendkim.job.publishImage.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.gendkim.job.publishImage.pullPolicy }}
+          name: gendkim-upload
+          securityContext:
+            {{- toYaml .Values.gendkim.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.gendkim.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /scripts
+              name: scripts
+              readOnly: true
+            - mountPath: /data
+              name: data
+              readOnly: true
+      restartPolicy: Never
+      serviceAccount: {{ $name }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "dockermailserver.fullname" . }}-scripts
+            defaultMode: 0755
+        - name: data
+          emptyDir: {}
+        - name: dkimkeys
+          secret:
+            secretName: {{ template "dockermailserver.fullname" . }}-dkimkeys
+        - name: configs
+          configMap:
+            name: {{ template "dockermailserver.fullname" . }}-configs
+  parallelism: 1
+  completions: 1
+  backoffLimit: 1
+---
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace $secretName) }}
+{{- if not $secret }}
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: never
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/hook: Skip
+    helm.sh/hook-weight: "0"
+    argocd.argoproj.io/hook-delete-policy: Never
+  name: {{ $secretName }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+data:
+{{- end }}
+---
+{{- $cm := (lookup "v1" "ConfigMap" .Release.Namespace $secretName) }}
+{{- if not $cm }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: never
+    helm.sh/resource-policy: keep
+    helm.sh/hook-weight: "0"
+    argocd.argoproj.io/hook: Skip
+    argocd.argoproj.io/hook-delete-policy: Never
+  name: {{ $secretName }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gendkim-job
+data:
+{{- end }}
+{{- end }}
+
