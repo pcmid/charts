@@ -45,24 +45,9 @@ Assuming all has gone well, execute the commands below to retrieve the TXT recor
 to add to your DNS zones, to finish setting up DKIM:
 {{/* Mount a dkim key for every domain configured */}}
 ---               
-{{- $cm := printf "%s-dkimkeys" (include "dockermailserver.fullname" .) }}
+{{- $cm := printf "%s-dkimtxts" (include "dockermailserver.fullname" .) }}
 {{- $ns := .Release.Namespace }}
 {{- range .Values.domains }}
-kubectl get cm -n {{ $ns }} {{ $cm }} -o=jsonpath='{.data."{{ . }}"}'
+kubectl get secret -n {{ $ns }} {{ $cm }} -o=jsonpath='{.data."{{ . }}"}' | base64 -d
 {{- end }}
 
----
-{{- if .Values.rainloop.enabled -}}
-{{- if .Values.rainloop.ingress.enabled -}}
-{{- if .Values.haproxy.enabled -}}  
-You've enabled RainLoop integration. Because you're using HAProxy, you'll need to configure RainLoop
-to use an IMAPS server of {{ template "dockermailserver.fullname" . }} on port 10993 (with SSL), since port 993
-expects to receive a PROXY header from haproxy, for external IMAPS connections. Use port 465 (with SSL) for SMTP
-
-{{- else }}
-You've enabled RainLoop integration. You'll need to configure RainLoop
-to use an IMAPS server of {{ template "dockermailserver.fullname" . }} on port 993 (with SSL), and an
-SMTP server of {{ template "dockermailserver.fullname" . }} on port 465 (with SSL)
-{{- end }}
-{{- end }}
-{{- end }}

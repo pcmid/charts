@@ -54,23 +54,26 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
-Create the name of the controller service account to use
+Provide a pre-defined claim or a claim based on the Release
 */}}
-{{- define "dockermailserver.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create -}}
-    {{ default (include "dockermailserver.fullname" .) .Values.serviceAccount.name }}
+{{- define "dockermailserver.pvcName" -}}
+{{- if .Values.persistent.existingClaim }}
+{{- .Values.persistent.existingClaim }}
 {{- else -}}
-    {{ default "docker-mailserver" .Values.serviceAccount.name }}
+{{- template "dockermailserver.fullname" . }}
 {{- end -}}
 {{- end -}}
 
 {{/*
 Create the name of the controller service account to use
 */}}
-{{- define "dockermailserver.rainloop.serviceAccountName" -}}
-{{- if .Values.rainloop.serviceAccount.create -}}
-    {{ default (include "dockermailserver.fullname" .) .Values.rainloop.serviceAccount.name }}
-{{- else -}}
-    {{ default "rainloop" .Values.rainloop.serviceAccount.name }}
+{{- define "dockermailserver.serviceAccountName" -}}
+    {{ default (include "dockermailserver.fullname" .) .Values.serviceAccount.name }}
 {{- end -}}
+
+{{/*
+Create the name of the controller service account to use
+*/}}
+{{- define "dockermailserver.roundcube.serviceAccountName" -}}
+    {{ default (printf "%s-roundcube" (include "dockermailserver.fullname" .)) .Values.roundcube.serviceAccount.name }}
 {{- end -}}

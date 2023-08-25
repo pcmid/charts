@@ -1,4 +1,5 @@
-{{- if not .Values.ssl.useExisting -}}  
+{{- if and .Values.ssl.enabled (not .Values.ssl.existingSecret ) -}}
+{{- if .Values.domains }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -9,7 +10,9 @@ spec:
   issuerRef:
     name: {{ default "letsencrypt-staging" .Values.ssl.issuer.name }}
     kind: {{ default "ClusterIssuer" .Values.ssl.issuer.kind }}
-  # commonName: '*.{{ default "example.com" .Values.ssl.dnsname }}'
   dnsNames:
-  - {{ default "example.com" .Values.ssl.dnsname }}
-{{- end -}}
+  {{- range .Values.domains .}}
+  - {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,31 +1,27 @@
-{{/* This whole template is only necessary if we're using rainloop */}}
-{{- if .Values.rainloop.enabled -}}  
-{{- if not .Values.rainloop.persistence.existingClaim -}}
+{{/* This whole template is only necessary if we're using roundcube */}}
+{{- if .Values.roundcube.enabled -}}  
+{{- if not .Values.roundcube.persistence.existingClaim -}}
 ---
 kind: "PersistentVolumeClaim"
 apiVersion: "v1"
 metadata:
-  name: {{ template "dockermailserver.fullname" . }}-rainloop
+  name: {{ template "dockermailserver.fullname" . }}-roundcube
   annotations:
-  {{- if .Values.rainloop.persistence.storageClass }}
-    volume.beta.kubernetes.io/storage-class: {{ .Values.rainloop.persistence.storageClass | quote }}
-  {{- else }}
-    volume.alpha.kubernetes.io/storage-class: "generic"
-  {{- end }}
-  {{- if .Values.rainloop.persistence.annotations }}
-  {{ toYaml .Values.rainloop.persistence.annotations | indent 2 }}  
+  {{- if .Values.roundcube.persistence.annotations }}
+  {{ toYaml .Values.roundcube.persistence.annotations | indent 4 }}
   {{ end }}  
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: roundcube
 spec:
   accessModes:
-    - {{ default "ReadWriteOnce" .Values.rainloop.persistence.accessMode | quote }}
+    - {{ default "ReadWriteOnce" .Values.roundcube.persistence.accessMode | quote }}
   resources:
     requests:
-      storage: {{ .Values.rainloop.persistence.size | quote }}
-  {{- if .Values.rainloop.persistence.selector }}
+      storage: {{ .Values.roundcube.persistence.size | quote }}
+  {{- if .Values.roundcube.persistence.selector }}
   selector:
-{{ toYaml .Values.rainloop.persistence.selector | indent 4 }}
+{{ toYaml .Values.roundcube.persistence.selector | indent 4 }}
   {{ end }}
 {{- end }}
 {{- end }}

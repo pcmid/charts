@@ -34,7 +34,7 @@ _gen_single() {
   cp /tmp/docker-mailserver/opendkim/keys/${domain}/mail.txt /data/txt/${domain}
 
   for config in {SigningTable,KeyTable,TrustedHosts}; do
-    cat /configs/${config} > /data/configs/${config} 
+    [ -f /configs/${config} ] && cat /configs/${config} > /data/configs/${config} || touch /data/configs/${config}
 
     new_config=/tmp/docker-mailserver/opendkim/${config}
     cat $new_config
@@ -54,26 +54,22 @@ _update() {
 
   echo "Storing dkim key in Kubernetes secret..."
   for key in $(ls /data/keys); do
-    kubectl patch secret "$SECRET_NAME" -p "{\"data\":{\"${key}\":\"$(base64 /data/keys/${key} | tr -d '\n')\"}}"
+    kubectl patch secret "$KEYS_SECRET_NAME" -p "{\"data\":{\"${key}\":\"$(base64 /data/keys/${key} -w 0)\"}}"
   done
 
   # merge...
-  echo "Storing dkim txt in Kubernetes configmap..."
-  for key in $(ls /data/txt); do
-    data=$(cat /data/txt/${key})
-    data="${data//\"/\\\"}"
-    data="${data//$'\t'/\\t}"
-    data="${data//$'\n'/\\n}"
-    kubectl patch configmap "$SECRET_NAME" -p "{\"data\":{\"${key}\":\"${data}\"}}"
+  echo "Storing dkim txt in Kubernetes secret..."
+  for txt in $(ls /data/txt); do
+    kubectl patch secret "$TXTS_SECRET_NAME" -p "{\"data\":{\"${txt}\":\"$(base64 /data/txt/${txt} -w 0)\"}}"
   done
 
   echo "Storing dkim configs in Kubernetes configmap..."
-  for key in $(ls /data/configs); do
-    data=$(cat /data/configs/${key} | sort | uniq)
-    data="${data//\"/\\\"}"
-    data="${data//$'\t'/\\t}"
+  for config in $(ls /data/configs); do
+    data=$(cat /data/configs/${config} | sort | uniq)
+    #data="${data//\"/\\\"}"
+    #data="${data//$'\t'/\\t}"
     data="${data//$'\n'/\\n}"
-    kubectl patch configmap "$CONFIGMAP_NAME" -p "{\"data\":{\"${key}\":\"${data}\"}}"
+    kubectl patch configmap "$CONFIGMAP_NAME" -p "{\"data\":{\"${config}\":\"${data}\"}}"
   done
 }
 

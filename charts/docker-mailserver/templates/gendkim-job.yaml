@@ -3,8 +3,9 @@
 {{- fail "Can't specify both dkim.job.enabled and dkim.existingSecret" }}
 {{- end }}
 {{- $name := printf "%s-gendkim-job" (include "dockermailserver.fullname" .) }}
-{{- $secretName := printf "%s-dkimkeys" (include "dockermailserver.fullname" .) }}
-{{- $configmapName := printf "%s-configs" (include "dockermailserver.fullname" .) }}
+{{- $keysName := printf "%s-dkimkeys" (include "dockermailserver.fullname" .) }}
+{{- $txtsName := printf "%s-dkimtxts" (include "dockermailserver.fullname" .) }}
+{{- $configName := printf "%s-dkim" (include "dockermailserver.fullname" .) }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -16,6 +17,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: hook-succeeded
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -27,6 +29,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: hook-succeeded
 rules:
   - apiGroups:
       - ""
@@ -34,8 +37,9 @@ rules:
       - secrets
       - configmaps
     resourceNames:
-      - {{ $secretName }}
-      - {{ $configmapName }}
+      - {{ $keysName }}
+      - {{ $txtsName }}
+      - {{ $configName }}
     verbs:
       - get
       - update
@@ -51,6 +55,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: hook-succeeded
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -70,6 +75,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: hook-succeeded
     {{- with .Values.gendkim.job.annotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -115,10 +121,12 @@ spec:
             kubectl auth can-i update secret/${SECRET_NAME}
             /scripts/gendkim.sh update
           env:
-            - name: SECRET_NAME
-              value: {{ $secretName }}
+            - name: KEYS_SECRET_NAME
+              value: {{ $keysName }}
+            - name: TXTS_SECRET_NAME
+              value: {{ $txtsName }}
             - name: CONFIGMAP_NAME
-              value: {{ $configmapName }}
+              value: {{ $configName }}
           image: "{{ .Values.gendkim.job.publishImage.repository }}:{{ .Values.gendkim.job.publishImage.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.gendkim.job.publishImage.pullPolicy }}
           name: gendkim-upload
@@ -144,15 +152,15 @@ spec:
           emptyDir: {}
         - name: dkimkeys
           secret:
-            secretName: {{ template "dockermailserver.fullname" . }}-dkimkeys
+            secretName: {{ $keysName }}
         - name: configs
           configMap:
-            name: {{ template "dockermailserver.fullname" . }}-configs
+            name: {{ $configName }}
   parallelism: 1
   completions: 1
   backoffLimit: 1
 ---
-{{- $secret := (lookup "v1" "Secret" .Release.Namespace $secretName) }}
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace $keysName) }}
 {{- if not $secret }}
 apiVersion: v1
 kind: Secret
@@ -164,14 +172,33 @@ metadata:
     argocd.argoproj.io/hook: Skip
     helm.sh/hook-weight: "0"
     argocd.argoproj.io/hook-delete-policy: Never
-  name: {{ $secretName }}
+  name: {{ $keysName }}
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
-    app.kubernetes.io/component: gendkim-job
+    app.kubernetes.io/component: opendkim
 data:
 {{- end }}
 ---
-{{- $cm := (lookup "v1" "ConfigMap" .Release.Namespace $secretName) }}
+{{- $cm := (lookup "v1" "Secret" .Release.Namespace $txtsName) }}
+{{- if not $cm }}
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: never
+    helm.sh/resource-policy: keep
+    helm.sh/hook-weight: "0"
+    argocd.argoproj.io/hook: Skip
+    argocd.argoproj.io/hook-delete-policy: Never
+  name: {{ $txtsName }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opendkim
+data:
+{{- end }}
+---
+{{- $cm := (lookup "v1" "ConfigMap" .Release.Namespace $configName) }}
 {{- if not $cm }}
 apiVersion: v1
 kind: ConfigMap
@@ -183,10 +210,10 @@ metadata:
     helm.sh/hook-weight: "0"
     argocd.argoproj.io/hook: Skip
     argocd.argoproj.io/hook-delete-policy: Never
-  name: {{ $secretName }}
+  name: {{ $configName }}
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
-    app.kubernetes.io/component: gendkim-job
+    app.kubernetes.io/component: opendkim
 data:
 {{- end }}
 {{- end }}

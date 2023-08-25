@@ -1,5 +1,5 @@
-{{/* This whole template is only necessary if we're using rainloop */}}
-{{- if .Values.rainloop.enabled -}}  
+{{/* This whole template is only necessary if we're using roundcube */}}
+{{- if .Values.roundcube.enabled -}}  
 ---
 kind: "Service"
 apiVersion: "v1"
@@ -16,14 +16,14 @@ metadata:
     {{- if eq .Values.service.type "LoadBalancer" }}service.beta.kubernetes.io/external-traffic: "OnlyLocal"{{ end }}
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
-    app.kubernetes.io/component: rainloop
-  name: {{ template "dockermailserver.fullname" . }}-rainloop
+    app.kubernetes.io/component: roundcube
+  name: {{ template "dockermailserver.fullname" . }}-roundcube
 spec:
   selector:
     {{- include "dockermailserver.labels" . | nindent 4 }}
-    app.kubernetes.io/component: rainloop
+    app.kubernetes.io/component: roundcube
   ports:
-    - port: {{ default 80 .Values.rainloop.service.port }}
+    - port: {{ default 80 .Values.roundcube.service.port }}
       targetPort: http
       protocol: TCP
       name: http

@@ -32,7 +32,7 @@ spec:
         - name: "data"
         {{- if .Values.persistent.enabled }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim | default (include "dockermailserver.fullname" .) }}
+            claimName: {{ template "dockermailserver.pvcName" . }}
         {{- else }}
           emptyDir: {}
         {{- end }}
@@ -51,7 +51,11 @@ spec:
         {{- if .Values.ssl.enabled }}
         - name: "ssl-cert"
           secret:
+            {{- if .Values.ssl.existingSecret }}
+            secretName: {{ .Values.ssl.existingSecret }}
+            {{- else }}
             secretName: {{ template "dockermailserver.fullname" . }}-tls
+            {{- end }}
         {{- end }}
         - name: tmp
           emptyDir: {}
@@ -81,13 +85,13 @@ spec:
           imagePullPolicy: {{ .Values.dockermailserver.image.pullPolicy }}
           resources:
             {{- toYaml .Values.dockermailserver.resources | nindent 12 }}
-          {{- if eq .Values.options.enable_fail2ban 1.0 }}
-          capabilities:
-            add:
-              - "NET_ADMIN"
-          {{- end }}
           securityContext:
             {{- toYaml .Values.dockermailserver.securityContext | nindent 12 }}
+            {{- if eq .Values.options.enable_fail2ban 1.0 }}
+            capabilities:
+              add:
+                - NET_ADMIN
+            {{- end }}
           volumeMounts:
             - name: config
               mountPath: /tmp/docker-mailserver
@@ -98,11 +102,9 @@ spec:
             {{- end }}
             - name: tmp
               mountPath: /var/tmp
-            {{- if .Values.metrics.enabled }}
             - name: data
               mountPath: /var/log/mail
               subPath: log
-            {{- end }}
             - name: data
               mountPath: /var/mail
               subPath: mail      
@@ -191,7 +193,7 @@ spec:
             - name: data
               mountPath: /var/log/mail
               subPath: log
-              readOnly: true     
+              readOnly: true
             - name: data
               mountPath: /var/mail-state
               subPath: mail-state
