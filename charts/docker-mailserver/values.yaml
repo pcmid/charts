@@ -1,4 +1,68 @@
 ---
+dockermailserver:
+  image:
+    # image.name is the name of the container image to use.
+    name: "ghcr.io/mailserver/docker-mailserver"
+    # image.tag is the tag of the container image to use.
+    tag: "12.1.0"
+    pullPolicy: "IfNotPresent"
+  
+  ## How many replicas of the deployment to run on kubernetes
+  ## Data will be synced by dsync (https://doc.dovecot.org/3.0/man/doveadm.1/)
+  ## Default: 1
+  replicas: 1
+
+  ## Add annotations to the instance
+  ## Useful for using something like stash to backup data (https://stash.run/docs/v0.9.0-rc.0/guides/latest/auto-backup/workload/)
+  annotations: {}  
+
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+
+  ## create or use exist name
+  serviceAccount:
+    create: true
+    name: ""
+
+  ## Configuration for the container security policy.
+  ##
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    readOnlyRootFilesystem: false # incompatible with the way docker-mailserver works
+    privileged: false
+
+  ## More generally, a "request" can be thought of as "how much is this container expected to need usually". it should be
+  ## possible to burst outside these constraints (during a high load operation). However, Kubernetes may kill the pod
+  ## if the node is under too higher load and the burst is outside its request
+  ##
+  ## Limits are hard limits. Violating them is either impossible, or results in container death. I'm not sure whether
+  ## making these optional is a good idea or not; at the moment, I think I'm happy to defer QOS to the cluster and try
+  ## and keep requests close to usage.
+  ##
+  ## Requests are what are used to determine whether more software "fits" onto the cluster.
+  ##
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ## Ref: https://github.com/kubernetes/kubernetes/blob/master/docs/design/resource-qos.md
+  ## Ref: https://docs.docker.com/engine/reference/run/#/runtime-constraints-on-resources
+  resources:
+    requests:
+      ## How much CPU this container is expected to need
+      cpu: "1"
+      ## How much memory this container is expected to need.
+      ## Reduce these at requests your peril - too few resources can cause daemons (i.e., clamd) to fail, or timeouts to occur.
+      ## A test installation with clamd running was killed when it consumed 1437Mi (which is why this value was increased to 1536)
+      memory: "1536Mi"
+    limits:
+      ## The max CPU this container should be allowed to use
+      cpu: "2"
+      ## The max memory this container should be allowed to use. Note: If a container exceeds its memory limit,
+      ## it may be terminated.
+      memory: "2048Mi"
+
 gendkim:
   job:
     enabled: true
@@ -37,90 +101,23 @@ initContainer:
     readOnlyRootFilesystem: true
     privileged: false
 
-dockermailserver:
-  image:
-    # image.name is the name of the container image to use. Refer to https://hub.docker.com/r/mailserver/docker-mailserver
-    name: "mailserver/docker-mailserver"
-    # image.tag is the tag of the container image to use. Refer to https://hub.docker.com/r/mailserver/docker-mailserver
-    tag: "12.1.0"
-    pullPolicy: "IfNotPresent"
-  
-  ## How many versions of the deployment to run on kubernetes
-  ## Default: 1
-  replicas: 1
-
-  ## Add annotations to the deployment
-  ## Useful for using something like stash to backup data (https://stash.run/docs/v0.9.0-rc.0/guides/latest/auto-backup/workload/)
-  annotations: {}  
-
-  ## Update strategy - only really applicable for deployments with RWO PVs attached
-  ## If replicas = 1, an update can get "stuck", as the previous pod remains attached to the 
-  ## PV, and the "incoming" pod can never start. Setting the strategy to "Recreate" (our default) will 
-  ## terminate the single previous pod, so that the new, incoming pod can attach to the PV    
-  strategy:
-    # rollingUpdate:
-    #   maxSurge: 1
-    #   maxUnavailable: 1
-    type: "Recreate"
-
-  ## Configuration for the container security policy.
-  ##
-  securityContext:
-    runAsUser: 0
-    runAsGroup: 0
-    runAsNonRoot: false
-    readOnlyRootFilesystem: false # incompatible with the way docker-mailserver works
-    privileged: false
-
-
-  ## More generally, a "request" can be thought of as "how much is this container expected to need usually". it should be
-  ## possible to burst outside these constraints (during a high load operation). However, Kubernetes may kill the pod
-  ## if the node is under too higher load and the burst is outside its request
-  ##
-  ## Limits are hard limits. Violating them is either impossible, or results in container death. I'm not sure whether
-  ## making these optional is a good idea or not; at the moment, I think I'm happy to defer QOS to the cluster and try
-  ## and keep requests close to usage.
-  ##
-  ## Requests are what are used to determine whether more software "fits" onto the cluster.
-  ##
-  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
-  ## Ref: https://github.com/kubernetes/kubernetes/blob/master/docs/design/resource-qos.md
-  ## Ref: https://docs.docker.com/engine/reference/run/#/runtime-constraints-on-resources
-  resources:
-    requests:
-      ## How much CPU this container is expected to need
-      cpu: "1"
-      ## How much memory this container is expected to need.
-      ## Reduce these at requests your peril - too few resources can cause daemons (i.e., clamd) to fail, or timeouts to occur.
-      ## A test installation with clamd running was killed when it consumed 1437Mi (which is why this value was increased to 1536)
-      memory: "1536Mi"
-    limits:
-      ## The max CPU this container should be allowed to use
-      cpu: "2"
-      ## The max memory this container should be allowed to use. Note: If a container exceeds its memory limit,
-      ## it may be terminated.
-      memory: "2048Mi"
-
-
 
 persistent:
   enabled: true
 
   size: "10Gi"
-  accessMode: ReadWriteOnce
   # storageClass: "-"
 
   # Uncomment the backup.kubernetes.io/deltas annotation below if you use https://github.com/miracle2k/k8s-snapshots
   annotations: {}
   # backup.kubernetes.io/deltas: PT1H P2D P30D P180D
 
-  existingClaim: ""
 
 # List all the domains to be used below - this is necessary to correctly configure DKIM keys for email signing
 # domains is the list of domains to be served by your docker-mailserver instance
-domains:
-  - your-first-domain.com
-  - your-second-domain.com
+domains: []
+#  - your-first-domain.com
+#  - your-second-domain.com
 
 # If you choose _not_ to use haproxy, and you're not exposing your services with a load-balanced service
 # with an external traffic policy in "Local" mode, you risk having the source IP of incoming mail overwritten
@@ -134,9 +131,9 @@ spfTestsDisabled: false
 rblRejectDomains: []
 
 ## These values define how the certificate created by the chart is processed by cert-manager
-## Ensure you've setup your ClusterIssuers (letsencrypt-staging and letsencrypt-prod) and DNS provider
+## Ensure you've set up your ClusterIssuers (letsencrypt-staging and letsencrypt-prod) and DNS provider
 ssl:
-  enabled: true
+  enabled: false
   issuer:
     name: letsencrypt-staging
     kind: ClusterIssuer
@@ -255,6 +252,7 @@ options:
   relay_user:
   relay_password:
 
+## TODO:
 # copy to /tmp/docker-mailserver/
 extraConfigFiles:
   "dovecot.cf": |
@@ -295,9 +293,13 @@ service:
   # privateIp:
   ## Only relevant if the `type` above is "LoadBalancer"
   loadBalancer:
+    ## Deprecated:
+    ## This field was under-specified and its meaning varies across implementations, and it cannot support dual-stack.
+    ## As of Kubernetes v1.24, users are encouraged to use implementation-specific annotations when available.
+    ## This field may be removed in a future API version.
     ## If there is already a reserved public IP that this load balancer should use, indicate it here.
     ## Default: Automatically assign a random, ephemeral IP
-    # publicIp:
+    # loadBalancerIP:
     ## If there should be firewall rules restricting the load balancer to a limited set of IPs, specify those IPs below
     ## in CIDR format. If all IPs shoud be allowed access, set the CIDR as "0.0.0.0/0"
     allowedIps:
@@ -362,39 +364,6 @@ haproxy:
 
   defaultBackend:
     replicaCount: 1
-
-roundcube:
-  enabled: false
-  image:
-    # rainloop.image.name is the docker container to use for the rainloop pod
-    name: "hardware/rainloop"
-    # rainloop.image.tag is the tag of the docker container to use for the rainloop pod
-    tag: "latest"
-    pullPolicy: "Always"
-
-    ## Update strategy - only really applicable for deployments with RWO PVs attached
-    ## If replicas = 1, an update can get "stuck", as the previous pod remains attached to the
-    ## PV, and the "incoming" pod can never start. Setting the strategy to "Recreate" (our default) will
-    ## terminate the single previous pod, so that the new, incoming pod can attach to the PV.
-    strategy:
-       rollingUpdate:
-         maxSurge: 25%
-         maxUnavailable: 1
-  service:
-    port: 80
-
-  ingress:
-    enabled: false
-    hosts:
-      - roundcube.example.com
-    annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-    path: /
-    tls: []
-
-
-
 
 # when metrics is enabled, we mount subpath log from pvc into /var/log/mail
 metrics:

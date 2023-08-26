@@ -20,9 +20,9 @@ metadata:
 spec:
   ## If a load balancer is being used, ensure that the newer type of LB that passes along IP information is used
   ## rather than the legacy one.
-  {{- if eq .Values.service.type "LoadBalancer" }}
+  {{- if and (eq .Values.service.type "LoadBalancer") (not .Values.proxyProtocol.enabled) }}
   externalTrafficPolicy: Local
-  {{- else if eq .Values.service.type "NodePort" }}
+  {{- else }}
   externalTrafficPolicy: Cluster
   {{ end }}
   selector:
@@ -74,9 +74,6 @@ spec:
     - protocol: "TCP"
       name: "tcp-managesieve"
       port: 4190  
-    - protocol: "TCP"
-      name: "tcp-dsync"
-      port: 4711
     {{- if .Values.roundcube.enabled }}
     - protocol: "TCP"
       name: "tcp-imaps-roundcube"
@@ -91,7 +88,33 @@ spec:
     {{- end }}
 
   type: {{ default "ClusterIP" .Values.service.type }}
-  {{ if and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancer.allowedIps -}}
+  {{ if eq .Values.service.type "LoadBalancer"  -}}
+  {{- if .Values.service.loadBalancer.loadBalancerIP }}
+  loadBalancerIP: .Values.service.loadBalancer.loadBalancerIP
+  {{- end }}
+  {{-if .Values.service.loadBalancer.allowedIps }}
   loadBalancerSourceRanges:
   {{ .Values.service.loadBalancer.allowedIps | toYaml | indent 4 }}
   {{- end }}
+  {{- end }}
+---
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  annotations:
+    {{- if .Values.service.annotations }}
+    {{- toYaml .Values.service.annotations | indent 4 }}
+    {{- end }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}-headless
+spec:
+  selector:
+    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  clusterIP: None
+  ports:
+    - protocol: "TCP"
+      name: "tcp-dsync"
+      port: 4117

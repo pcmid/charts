@@ -40,14 +40,13 @@
 
 You've successfully launched docker-mailserver helm chart!
 
-
+---
 Assuming all has gone well, execute the commands below to retrieve the TXT records
 to add to your DNS zones, to finish setting up DKIM:
 {{/* Mount a dkim key for every domain configured */}}
----               
 {{- $cm := printf "%s-dkimtxts" (include "dockermailserver.fullname" .) }}
 {{- $ns := .Release.Namespace }}
 {{- range .Values.domains }}
-kubectl get secret -n {{ $ns }} {{ $cm }} -o=jsonpath='{.data."{{ . }}"}' | base64 -d
+kubectl get secret -n {{ $ns }} {{ $cm }} -o=jsonpath='{.data.\"{{ . }}\"}' | base64 -d
 {{- end }}
 

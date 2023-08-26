@@ -1,6 +1,6 @@
 ---
-apiVersion: "apps/v1"
-kind: "Deployment"
+apiVersion: apps/v1
+kind: "StatefulSet"
 metadata:
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
@@ -12,11 +12,16 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.dockermailserver.replicas }}
+  serviceName: {{ template "dockermailserver.fullname" . }}-headless
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels:
       {{- include "dockermailserver.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: dockermailserver
-  strategy: {{- toYaml .Values.dockermailserver.strategy | nindent 4 }}
+  updateStrategy:
+    {{- toYaml .Values.dockermailserver.strategy | nindent 4 }}
   template:
     metadata:
       labels:
@@ -29,13 +34,6 @@ spec:
     spec:
       serviceAccountName: {{ template "dockermailserver.serviceAccountName" . }}
       volumes:
-        - name: "data"
-        {{- if .Values.persistent.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ template "dockermailserver.pvcName" . }}
-        {{- else }}
-          emptyDir: {}
-        {{- end }}
         - name: "config"
           emptyDir: {}
         - name: "configmap"
@@ -54,14 +52,11 @@ spec:
             {{- if .Values.ssl.existingSecret }}
             secretName: {{ .Values.ssl.existingSecret }}
             {{- else }}
-            secretName: {{ template "dockermailserver.fullname" . }}-tls
+            secretName: {{ .Values.ssl.existingSecret }}
             {{- end }}
         {{- end }}
         - name: tmp
           emptyDir: {}
-        {{- if .Values.additionalVolumes }}
-          {{- toYaml .Values.additionalVolumes | nindent 8 }}
-        {{- end }}
       initContainers:
         - name: prep-config
           image: {{ .Values.initContainer.image.name }}:{{ .Values.initContainer.image.tag }}
@@ -69,14 +64,14 @@ spec:
           command: [ 'sh','-c', 'cp /tmp/configmaps/* /tmp/docker-mailserver -rfpvL' ]
           securityContext:
             {{- toYaml .Values.initContainer.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.initContainer.resources | nindent 12 }}
           volumeMounts:
             - name: configmap
               mountPath: /tmp/configmaps
               readOnly: true
             - name: config
               mountPath: /tmp/docker-mailserver/
-          resources:
-            {{- toYaml .Values.initContainer.resources | nindent 12 }}
       containers:
         - name: dockermailserver
           env:
@@ -200,4 +195,16 @@ spec:
               readOnly: true
         {{- end }}
       restartPolicy: "Always"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        annotations:
+          {{- toYaml .Values.dockermailserver.annotations | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ default "ReadWriteOnce" .Values.persistent.accessModes }}
+        storageClassName: {{ default "" .Values.persistent.storageClassName }}
+        resources:
+          requests:
+            storage: {{ default "1Gi" .Values.persistent.size }}
 

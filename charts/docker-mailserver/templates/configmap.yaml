@@ -46,6 +46,7 @@ data:
   {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
   {{- end }}
 
+  {{/* https://doc.dovecot.org/configuration_manual/replication/ */}}
   80-replication.conf: |
     mail_plugins = $mail_plugins notify replication
 
@@ -67,18 +68,23 @@ data:
     }
     
     doveadm_port = 4117
+    {{/* TODO: change default password */}}
     doveadm_password = secret
 
     service doveadm {
       inet_listener {
         port = 4117
+        {{- if .Values.ssl.enabled }}
         ssl = yes
+        {{- end }}
       }
     }
 
     plugin {
-      #mail_replica = tcp:anotherhost.example.com       # use doveadm_port
-      #mail_replica = tcp:anotherhost.example.com:12345 # use port 12345 explicitly
+      {{- $name := include "dockermailserver.fullname" . }}
+      {{- range $index := until (int .Values.dockermailserver.replicas) }}
+      mail_replica = tcp:{{ $name }}-{{ $index }}.{{ $name }}-headless
+      {{- end }}
     }
 
   91-override-sieve.conf: |
