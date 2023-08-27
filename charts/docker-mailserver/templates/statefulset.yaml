@@ -43,7 +43,7 @@ spec:
                 name: {{ template "dockermailserver.fullname" . }}-configs
             - secret:
                 name: {{ template "dockermailserver.fullname" . }}-postfix-users
-        - name: "opendkim-keys"
+        - name: "dkimkeys"
           secret:
             secretName: {{ template "dockermailserver.fullname" . }}-dkimkeys
         {{- if .Values.ssl.enabled }}
@@ -52,7 +52,7 @@ spec:
             {{- if .Values.ssl.existingSecret }}
             secretName: {{ .Values.ssl.existingSecret }}
             {{- else }}
-            secretName: {{ .Values.ssl.existingSecret }}
+            secretName: {{ template "dockermailserver.fullname"}}-tls
             {{- end }}
         {{- end }}
         - name: tmp
@@ -75,14 +75,17 @@ spec:
       containers:
         - name: dockermailserver
           env:
-          {{- include "dockermailserver.upstream-env-variables" . | nindent 10 }}
+            {{- range $key, $value :=.Values.env}}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
           image: {{ .Values.dockermailserver.image.name }}:{{ .Values.dockermailserver.image.tag }}
           imagePullPolicy: {{ .Values.dockermailserver.image.pullPolicy }}
           resources:
             {{- toYaml .Values.dockermailserver.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.dockermailserver.securityContext | nindent 12 }}
-            {{- if eq .Values.options.enable_fail2ban 1.0 }}
+            {{- if eq .Values.env.ENABLE_FAIL2BAN 1.0 }}
             capabilities:
               add:
                 - NET_ADMIN
@@ -107,8 +110,8 @@ spec:
               mountPath: /var/mail-state
               subPath: mail-state
             - name: configmap
-              subPath: dovecot-services.cf
-              mountPath: /etc/dovecot/conf.d/services.cf
+              subPath: dovecot-services.conf
+              mountPath: /etc/dovecot/conf.d/services.conf
               readOnly: true
             - name: configmap
               subPath: dovecot.cf
@@ -126,7 +129,15 @@ spec:
               subPath: KeyTable
               mountPath: /tmp/docker-mailserver/opendkim/KeyTable
               readOnly: true
-            {{- if .Values.options.enable_dovecot_replication }}
+            - name: configmap
+              subPath: dkim_signing.conf
+              mountPath: /etc/rspamd/override.d/dkim_signing.conf
+              readOnly: true
+            {{- if gt .Values.dockermailserver.replicas 1.0 }}
+            - name: configmap
+              subPath: 10-replication.conf
+              mountPath: /etc/dovecot/conf.d/10-replication.conf
+              readOnly: true
             - name: configmap
               subPath: 80-replication.conf
               mountPath: /etc/dovecot/conf.d/80-replication.conf
@@ -136,11 +147,10 @@ spec:
               mountPath: /etc/dovecot/conf.d/91-override-sieve.conf
               readOnly: true
             {{- end }}
-            {{/* Mount a dkim key for every domain configured */}}
             {{- range .Values.domains }}
-              {{- $path := printf "/tmp/docker-mailserver/opendkim/keys/%s/mail.private" . }}
+              {{- $path := printf "/tmp/docker-mailserver/dkimkeys/%s/mail.private" . }}
               {{- $name := printf "%s" . }}
-            - name: opendkim-keys
+            - name: dkimkeys
               mountPath: {{ $path }}
               subPath: {{ $name }}
               readOnly: true
@@ -153,7 +163,7 @@ spec:
                command:
                  - /bin/bash
                  - -c
-                 - supervisorctl status | grep -E "amavis|clamav|cron|dovecot|mailserver|opendkim|opendmarc|postfix|rsyslog" | grep RUNNING
+                 - supervisorctl status | grep -E "amavis|clamav|cron|dovecot|mailserver|rspamd|opendmarc|postfix|rsyslog" | grep RUNNING
             initialDelaySeconds: 10
             timeoutSeconds: 1
             failureThreshold: 3
@@ -195,6 +205,7 @@ spec:
               readOnly: true
         {{- end }}
       restartPolicy: "Always"
+
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -207,4 +218,3 @@ spec:
         resources:
           requests:
             storage: {{ default "1Gi" .Values.persistent.size }}
-

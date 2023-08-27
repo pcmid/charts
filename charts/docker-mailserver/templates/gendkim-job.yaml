@@ -17,7 +17,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
-    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -29,7 +29,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
-    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 rules:
   - apiGroups:
       - ""
@@ -55,7 +55,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "0"
-    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -75,7 +75,7 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "5"
-    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     {{- with .Values.gendkim.job.annotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -198,8 +198,7 @@ metadata:
 data:
 {{- end }}
 ---
-{{- $cm := (lookup "v1" "ConfigMap" .Release.Namespace $configName) }}
-{{- if not $cm }}
+{{- if not (lookup "v1" "ConfigMap" .Release.Namespace $configName) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

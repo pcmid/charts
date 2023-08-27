@@ -7,6 +7,7 @@ metadata:
   name: {{ template "dockermailserver.fullname" . }}-configs
 data:
   postfix-main.cf: |
+    mydestination = localhost.$mydomain, localhost
   {{/* Enable proxy protocol for postscreen / dovecot */}}
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}  # Necessary to permit proxy protocol from haproxy to postscreen
     postscreen_upstream_proxy_protocol = haproxy
@@ -15,41 +16,64 @@ data:
     smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, reject_unknown_recipient_domain, reject_rbl_client zen.spamhaus.org, reject_rbl_client bl.spamcop.net{{ range .Values.rblRejectDomains }}, reject_rbl_client {{ . }}{{ end }}
   {{- end }}
 
-  dovecot-services.cf: |
+  postfix-master.cf: |
+  {{- if index .Values.extraConfigFiles "postfix-master.cf" }}
+    {{- index .Values.extraConfigFiles "postfix-master.cf" }}
+  {{- end }}
+    # Necessary to permit proxy protocol from haproxy to smtpd
+  {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+    submission/inet/smtpd_upstream_proxy_protocol=haproxy
+    submissions/inet/smtpd_upstream_proxy_protocol=haproxy
+  {{- end }}
+
+  dovecot-services.conf: |
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
     haproxy_trusted_networks = {{ .Values.proxyProtocol.trustedNetworks }}
   {{ end }}
     service imap-login {
       inet_listener imap {
-        {{ if or .Values.haproxy.enabled .Values.proxyProtocol.enabled -}}haproxy = yes{{ end }}
-      }  
-      inet_listener imaps {
-        {{ if or .Values.haproxy.enabled .Values.proxyProtocol.enabled -}}haproxy = yes{{ end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10143
+      {{- end }}
+      {{- if or .Values.ssl.enabled }}
+        ssl = yes
+      {{- end }}
       }
-    {{- if .Values.roundcube.enabled }}
-      inet_listener imaps-roundcube {
+      inet_listener imaps {
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
         port = 10993
+      {{- end }}
         ssl = yes
       }
-    {{ end }}      
-    }    
+    }
     service pop3-login {
       inet_listener pop3 {
-        {{ if or .Values.haproxy.enabled .Values.proxyProtocol.enabled -}}haproxy = yes{{ end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10110
+      {{- end }}
+      {{- if or .Values.ssl.enabled }}
+        ssl = yes
+      {{- end }}
       }
       inet_listener pop3s {
-        {{ if or .Values.haproxy.enabled .Values.proxyProtocol.enabled -}}haproxy = yes{{ end }}
-      }                        
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10995
+      {{- end }}
+        ssl = yes
+      }
     }
 
-  {{- if .Values.options.enable_fail2ban }}
   {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
-  {{- end }}
 
   {{/* https://doc.dovecot.org/configuration_manual/replication/ */}}
-  80-replication.conf: |
+  10-replication.conf: |
     mail_plugins = $mail_plugins notify replication
 
+  80-replication.conf: |
     service replicator {
       process_min_avail = 1
       unix_listener replicator-doveadm {
@@ -67,13 +91,13 @@ data:
       }
     }
     
-    doveadm_port = 4117
+    doveadm_port = 4711
     {{/* TODO: change default password */}}
     doveadm_password = secret
 
     service doveadm {
       inet_listener {
-        port = 4117
+        port = 4711
         {{- if .Values.ssl.enabled }}
         ssl = yes
         {{- end }}
@@ -91,6 +115,30 @@ data:
     plugin {
       sieve = /var/mail/sieve/%d/%n/.dovecot.sieve
       sieve_dir = /var/mail/sieve/%d/%n/sieve
+    }
+
+  dkim_signing.conf: |
+    # documentation: https://rspamd.com/doc/modules/dkim_signing.html
+
+    enabled = true;
+
+    sign_authenticated = true;
+    sign_local = true;
+
+    use_domain = "header";
+    use_redis = false;   # don't change unless Redis also provides the DKIM keys
+    use_esld = true;
+
+    check_pubkey = true; # you wan't to use this in the beginning
+
+    domain {
+      {{- range $domain := .Values.domains }}
+      {{- $path := printf "/tmp/docker-mailserver/dkimkeys/%s/mail.private" . }}
+      {{ $domain }} {
+        path = {{ $path }};
+        selector = "mail";
+      }
+    {{- end }}
     }
 
   am-i-healthy.sh: |
