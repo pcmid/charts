@@ -18,7 +18,7 @@ data:
 
   postfix-master.cf: |
   {{- if index .Values.extraConfigFiles "postfix-master.cf" }}
-    {{- index .Values.extraConfigFiles "postfix-master.cf" }}
+    {{- get .Values.extraConfigFiles "postfix-master.cf" | nindent 4 }}
   {{- end }}
     # Necessary to permit proxy protocol from haproxy to smtpd
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
