@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nodeslist
+data:
+  {{- $fullname := include "typesense.fullname" . }}
+  {{- $ns := .Release.Namespace }}
+  {{- $clusterDomain := .Values.clusterDomain }}
+  {{- $svcPort := .Values.service.port -}}
+  {{- $nodeseq := untilStep 0 (int .Values.replicaCount) 1 }}
+  {{- $nodes := list }}
+  {{- range $index := $nodeseq }}
+  {{- $node := printf "%s-%d.%s-headless.%s.svc.%s:8107:%d" $fullname $index $fullname $ns $clusterDomain (int $svcPort) }}
+  {{- $nodes = append $nodes $node }}
+  {{- end }}
+  nodes: {{ $nodes | join "," | quote }}
+
+
+
+
+
+

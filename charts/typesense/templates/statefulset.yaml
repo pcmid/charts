@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "typesense.fullname" . }}
+  labels:
+    {{- include "typesense.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "typesense.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "typesense.fullname" . }}-headless
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "typesense.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "typesense.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - "/opt/typesense-server"
+            - "-d"
+            - "/data"
+            - "-a"
+            - {{ .Values.apiKey | quote }}
+            - "--api-port"
+            - {{ .Values.service.port | quote }}
+            - "--peering-port"
+            - "8107"
+            - "--nodes"
+            - "/nodes/nodes"
+            - "--reset-peers-on-error"
+          ports:
+            - name: api
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: peering
+              containerPort: 8107
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: {{ default "/data" .Values.persistence.mountPath }}
+            - name: nodes
+              mountPath: /nodes
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: nodes
+          configMap:
+            name: nodeslist
+            items:
+              - key: nodes
+                path: nodes
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: {{ include "typesense.fullname" . }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- if .Values.persistence.annotations }}
+        volumeMode: Filesystem
+        {{- toYaml .Values.persistence.annotations | nindent 8 }}
+        {{- end }}
+
