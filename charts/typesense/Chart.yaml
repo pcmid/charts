@@ -1,0 +1,19 @@
+apiVersion: v2
+name: typesense
+description: Fast, typo tolerant, in-memory fuzzy Search Engine for building delightful search experiences
+type: application
+
+version: 0.1.0
+appVersion: "0.25.1"
+
+keywords:
+  - search
+
+home: https://typesense.org/
+sources:
+  - https://github.com/typesense/typesense
+  - https://github.com/pcmid/charts/tree/main/charts/typesense
+
+maintainers:
+  - name: pcmid
+    email: plzcmid@gmail.com
