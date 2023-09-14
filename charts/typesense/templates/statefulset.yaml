@@ -34,17 +34,25 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - "/opt/typesense-server"
+          args:
             - "-d"
             - "/data"
             - "-a"
             - {{ .Values.apiKey | quote }}
             - "--api-port"
             - {{ .Values.service.port | quote }}
+            - "--peering-address"
+            - "$(MY_POD_IP)"
             - "--peering-port"
             - "8107"
             - "--nodes"
-            - "/nodes/nodes"
+            - "/nodes"
             - "--reset-peers-on-error"
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           ports:
             - name: api
               containerPort: {{ .Values.service.port }}
@@ -57,15 +65,13 @@ spec:
               mountPath: {{ default "/data" .Values.persistence.mountPath }}
             - name: nodes
               mountPath: /nodes
+              subPath: nodes
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: nodes
           configMap:
             name: nodeslist
-            items:
-              - key: nodes
-                path: nodes
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
