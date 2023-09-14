@@ -94,4 +94,25 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/coredns-id-0.0.1/coredns-id-0.0.1.tgz
     version: 0.0.1
-generated: "2023-05-09T15:19:36.108731604Z"
+  typesense:
+  - apiVersion: v2
+    appVersion: 0.25.1
+    created: "2023-09-14T17:02:14.715193431Z"
+    description: Fast, typo tolerant, in-memory fuzzy Search Engine for building delightful
+      search experiences
+    digest: 5511f3c7db6d22f4f3a025ccbb0b38da2f992ef09d4892fbd7c4ca32c7b22f34
+    home: https://typesense.org/
+    keywords:
+    - search
+    maintainers:
+    - email: plzcmid@gmail.com
+      name: pcmid
+    name: typesense
+    sources:
+    - https://github.com/typesense/typesense
+    - https://github.com/pcmid/charts/tree/main/charts/typesense
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-09-14T17:02:14.715205331Z"
