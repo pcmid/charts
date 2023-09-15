@@ -97,6 +97,26 @@ entries:
   typesense:
   - apiVersion: v2
     appVersion: 0.25.1
+    created: "2023-09-15T02:02:58.660131436Z"
+    description: Fast, typo tolerant, in-memory fuzzy Search Engine for building delightful
+      search experiences
+    digest: b73682606e9aa1189b9cd625acd054d6e0ae600fde75c2cb0f41c00c5a3f3f4c
+    home: https://typesense.org/
+    keywords:
+    - search
+    maintainers:
+    - email: plzcmid@gmail.com
+      name: pcmid
+    name: typesense
+    sources:
+    - https://github.com/typesense/typesense
+    - https://github.com/pcmid/charts/tree/main/charts/typesense
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/typesense-0.1.1/typesense-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 0.25.1
     created: "2023-09-14T17:02:14.715193431Z"
     description: Fast, typo tolerant, in-memory fuzzy Search Engine for building delightful
       search experiences
@@ -115,4 +135,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2023-09-14T17:02:14.715205331Z"
+generated: "2023-09-15T02:02:58.660152737Z"
