@@ -1,0 +1,374 @@
+# Default values for immich.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+immich:
+  publicUrl: http://chart-example.local
+
+extraEnvVars: {}
+  #TZ: "UTC"
+  #LOG_LEVEL: "info"
+  #DISABLE_REVERSE_GEOCODING: "false"
+
+image:
+  repository: ghcr.io/immich-app
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+server:
+  replicaCount: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    fsGroup: 1000
+    # fsGroupChangePolicy: "OnRootMismatch"
+
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 768Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 512Mi
+
+microservices:
+  replicaCount: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    fsGroup: 1000
+    # fsGroupChangePolicy: "OnRootMismatch"
+
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 768Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 512Mi
+
+machinelearning:
+  replicaCount: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    fsGroup: 1000
+    # fsGroupChangePolicy: "OnRootMismatch"
+
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 3584Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 3072Mi
+  persistence:
+    enabled: false
+    # existingClaim: ""
+    size: 128Mi
+    # storageClass: ""
+    accessModes:
+      - ReadWriteOnce # only works with single replica
+    annotations: { }
+    # subPath: "" # only mount a subpath of the Volume into the pod
+
+web:
+  replicaCount: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    fsGroup: 1000
+    # fsGroupChangePolicy: "OnRootMismatch"
+
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+proxy:
+  replicaCount: 1
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    fsGroup: 101
+    # fsGroupChangePolicy: "OnRootMismatch"
+
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+typesense:
+  enabled: true
+  replicas: 1
+  apiKey: "randomString"
+
+externalTypesense:
+  enabled: false
+  # host: "typesense"
+  # port: "8108"
+  # protocol: "http"
+  apiKey: "randomString"
+
+## This configuration is for setting up the internally provided Postgres server,
+## if you instead want to use an existing server, then you may want to set
+## enabled to false and configure the externalPostgresql block.
+##
+postgresql:
+  enabled: true
+
+  auth:
+    # XXX Change me!
+    password: immich
+
+    ## Or use existing secret with "password" key
+    ## instead of static password
+    ##
+    # existingSecret: postgresql-secret
+
+    username: immich
+    database: immich
+
+    persistence:
+      # storageClass: "-"
+      size: 16Gi
+
+  ## Extra arguments for the database connection
+  ##
+  extraArgs: {}
+
+## An externally configured Postgres server to use for immich's database.
+##
+externalPostgresql:
+  # host: postgres
+  port: 5432
+  username: immich
+  # password: immich
+
+  ## The name of an existing secret with postgresql credentials
+  #existingSecret: postgres-secrets
+
+  ## Password key to be retrieved from existing secret
+  #existingSecretPasswordKey: postgres-password
+
+  database: immich
+  # sslmode: prefer
+
+  ## Extra arguments for the database connection
+  ##
+  extraArgs: {}
+
+## This configuration is for the internal Redis that's deployed for use with
+## workers/sharding, for an external Redis server you want to set enabled to
+## false and configure the externalRedis block.
+##
+redis:
+  enabled: true
+
+  ## Database ID for non-default database
+  # db: 0
+
+  auth:
+    enabled: true
+    # Username authentication is not supported
+    # XXX Change me!
+    password: immich
+
+    ## Or use existing secret with "redis-password" key
+    ## instead of static password
+    ##
+    # existingSecret: redis-secret
+
+  architecture: standalone
+  master:
+    kind: Deployment
+    persistence:
+      enabled: false
+    service:
+      port: 6379
+
+## An externally configured Redis server to use for workers/sharding.
+##
+externalRedis:
+  # host: redis
+  port: 6379
+  # username: immich
+  # password: immich
+
+  ## Database ID for non-default database
+  # db: 0
+
+  ## The name of an existing secret with redis credentials
+  #existingSecret: redis-secrets
+
+  ## Password key to be retrieved from existing secret
+  #existingSecretPasswordKey: redis-password
+
+persistence:
+  enabled: false
+  # existingClaim: ""
+  size: 128Mi
+  # storageClass: ""
+  annotations: {}
+  # subPath: "" # only mount a subpath of the Volume into the pod
+
+# Set externalPIs to your public IP(s) of the node running maddy. In case of multiple nodes, you need to set tolerations
+# and taints in order to run maddy on the exact node.
+service:
+  type: ClusterIP
+  port: 2283
+
+## The K8s ingress configuration, this will be quite heavily used in order to
+## set up all routing necessary for use with a sharded immich instance.
+## If you're not using a Ingress compatible K8s ingress, you will need to set up
+## your own routing instead.
+##
+ingress:
+  enabled: false
+
+  ## Generate traefik-compatible regex paths instead of nginx-compatible ones.
+  ##
+  traefikPaths: false
+
+  ## Annotations to apply to the created ingress resource.
+  ##
+  annotations:
+  #  nginx.ingress.kubernetes.io/use-regex: "true"
+  #  nginx.ingress.kubernetes.io/proxy-body-size: 50000m
+  #  kubernetes.io/tls-acme: "true"
+
+  ## Additional hosts to add to the ingress configuration for handling requests.
+  ##
+  hosts:
+  - host: chart-example.local
+    paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: immich-proxy
+            port:
+              name: http
+
+  ## TLS configuration to include in the ingress configuration
+  ##
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - example.com
+
+  ## Set the name of the IngressClass cluster resource (optional)
+  ## https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/#IngressSpec
+  className: nginx
+
+
