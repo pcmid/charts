@@ -218,7 +218,7 @@ externalTypesense:
   # host: "typesense"
   # port: "8108"
   # protocol: "http"
-  apiKey: "randomString"
+  # apiKey: "randomString"
 
 ## This configuration is for setting up the internally provided Postgres server,
 ## if you instead want to use an existing server, then you may want to set

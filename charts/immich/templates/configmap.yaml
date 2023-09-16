@@ -11,6 +11,10 @@ data:
   PUBLIC_IMMICH_SERVER_URL: {{ .Values.immich.publicUrl | quote }}
   IMMICH_MEDIA_LOCATION: {{ include "immich.dataMountPath" . | quote }}
 
+  {{- if not (or .Values.typesense.enabled .Values.externalTypesense.enabled) }}
+  TYPESENSE_ENABLED: "false"
+  {{- end }}
+
   {{- if .Values.extraEnvVars }}
   {{- toYaml .Values.extraEnvVars | nindent 2 }}
   {{- end }}

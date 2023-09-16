@@ -253,8 +253,9 @@ Set typesense host
 {{- define "immich.typesense.host" -}}
 {{- if .Values.redis.enabled -}}
 {{- include "immich.typesense.fullname" . | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
+{{- else if .Values.externalTypesense.enabled -}}
 {{ required "A valid externalTypesense.host is required" .Values.externalTypesense.host }}
+{{- else }}
 {{- end -}}
 {{- end -}}
 
@@ -263,9 +264,10 @@ Set typesense port
 */}}
 {{- define "immich.typesense.port" -}}
 {{- if .Values.typesense.enabled -}}
-{{- .Values.typesense.service.port | default 8108 }}
-{{- else -}}
+{{- default 8108 .Values.typesense.service.port }}
+{{- else if .Values.externalTypesense.enabled -}}
 {{ required "A valid externalTypesense.port is required" .Values.externalTypesense.port }}
+{{- else }}
 {{- end -}}
 {{- end -}}
 
@@ -286,7 +288,8 @@ Set typesense password
 {{- define "immich.typesense.apkKey" -}}
 {{- if .Values.typesense.enabled -}}
 {{ .Values.typesense.apiKey }}
-{{- else -}}
+{{- else if .Values.externalTypesense.enabled -}}
 {{ required "A valid externalTypesense.apiKey is required" .Values.externalTypesense.apiKey }}
+{{- else }}
 {{- end -}}
 {{- end -}}
