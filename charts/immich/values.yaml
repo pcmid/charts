@@ -349,16 +349,9 @@ ingress:
 
   ## Additional hosts to add to the ingress configuration for handling requests.
   ##
-  hosts:
-  - host: chart-example.local
-    paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: immich-proxy
-            port:
-              name: http
+  hosts: []
+  #  - chart-example.local
+
 
   ## TLS configuration to include in the ingress configuration
   ##
