@@ -133,7 +133,7 @@ machinelearning:
   persistence:
     enabled: false
     # existingClaim: ""
-    size: 128Mi
+    size: 2Gi
     # storageClass: ""
     accessModes:
       - ReadWriteOnce # only works with single replica
@@ -317,7 +317,7 @@ externalRedis:
 persistence:
   enabled: false
   # existingClaim: ""
-  size: 128Mi
+  size: 10Gi
   # storageClass: ""
   annotations: {}
   # subPath: "" # only mount a subpath of the Volume into the pod
