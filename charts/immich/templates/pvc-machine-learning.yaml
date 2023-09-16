@@ -1,0 +1,21 @@
+{{- if and .Values.machinelearning.persistence.enabled (not .Values.machinelearning.persistence.existingClaim) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "immich.fullname" . }}-machine-learning
+  annotations:
+    {{- with .Values.machinelearning.persistence.annotations  }}
+    {{ toYaml . | indent 4 }}
+    {{- end }}
+  labels:
+    {{- include "immich.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- .Values.machinelearning.persistence.accessModes | toYaml | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.machinelearning.persistence.size }}
+  {{- if .Values.machinelearning.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+{{- end -}}

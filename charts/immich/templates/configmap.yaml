@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "immich.fullname" . }}
+  labels:
+    {{- include "immich.labels" . | nindent 4 }}
+data:
+  IMMICH_WEB_URL: {{ printf "http://%s-web:3000" (include "immich.fullname" .) | quote  }}
+  IMMICH_SERVER_URL: {{ printf "http://%s-server:3001" (include "immich.fullname" .) | quote  }}
+  IMMICH_MACHINE_LEARNING_URL: {{ printf "http://%s-machine-learning:3003" (include "immich.fullname" .) | quote }}
+  PUBLIC_IMMICH_SERVER_URL: {{ .Values.immich.publicUrl | quote }}
+  IMMICH_MEDIA_LOCATION: {{ include "immich.dataMountPath" . | quote }}
+
+  {{- if not (or .Values.typesense.enabled .Values.externalTypesense.enabled) }}
+  TYPESENSE_ENABLED: "false"
+  {{- end }}
+
+  {{- if .Values.extraEnvVars }}
+  {{- toYaml .Values.extraEnvVars | nindent 2 }}
+  {{- end }}

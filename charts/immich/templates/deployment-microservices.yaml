@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "immich.fullname" . }}-microservices
+  labels:
+    {{- include "immich.labels" . | nindent 4 }}
+    app.kubernetes.io/component: microservices
+spec:
+  replicas: {{ .Values.microservices.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "immich.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: microservices
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.web.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "immich.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: microservices
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "immich.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.microservices.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-microservices
+          securityContext:
+            {{- toYaml .Values.microservices.securityContext | nindent 12 }}
+          image: {{ .Values.image.repository }}/immich-server:{{ include "immich.tag" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - "/bin/sh"
+          args:
+            - "start.sh"
+            - "microservices"
+          envFrom:
+            - configMapRef:
+                name: {{ include "immich.fullname" . }}
+            - secretRef:
+                name: {{ include "immich.fullname" . }}
+          ports:
+            - name: http
+              containerPort: 3002
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.microservices.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ include "immich.dataMountPath" . }}
+              {{- if .Values.persistence.subPath }}
+              subPath: {{ .Values.persistence.subPath }}
+              {{- end }}
+            - name: geocoding
+              mountPath: /usr/src/app/.reverse-geocoding-dump/
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ default (include "immich.fullname" .) .Values.persistence.existingClaim }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: geocoding
+          emptyDir: {}
+      {{- with .Values.microservices.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.microservices.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.microservices.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
