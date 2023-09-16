@@ -94,6 +94,41 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/coredns-id-0.0.1/coredns-id-0.0.1.tgz
     version: 0.0.1
+  immich:
+  - apiVersion: v2
+    appVersion: 1.78.1
+    created: "2023-09-16T15:56:32.940612436Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: ^12
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: ^18
+    - condition: typesense.enabled
+      name: typesense
+      repository: https://charts.shabi.id/
+      version: '>=0'
+    description: Self-hosted photo and video backup solution directly from your mobile
+      phone.
+    digest: d70c92c2b6db928ae384978dde7b6c0f2fb89c7ae2067b342a61a0ea557ed314
+    home: https://immich.app/
+    keywords:
+    - immich
+    - photo
+    - video
+    - backup
+    kubeVersion: '>=1.22.0-0'
+    name: immich
+    sources:
+    - https://github.com/pcmid/charts
+    - https://github.com/immich-app/immich
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/immich-0.1.0/immich-0.1.0.tgz
+    version: 0.1.0
   typesense:
   - apiVersion: v2
     appVersion: 0.25.1
@@ -135,4 +170,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2023-09-15T02:02:58.660152737Z"
+generated: "2023-09-16T15:56:32.940632836Z"
