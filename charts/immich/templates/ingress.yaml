@@ -26,9 +26,15 @@ spec:
   {{- end }}
   rules:
     {{- range .Values.ingress.hosts }}
-    - host: {{ .host}}
+    - host: {{ . }}
       http:
         paths:
-          {{- .paths | toYaml | nindent 10 }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: immich-proxy
+                port:
+                  name: http
     {{- end}}
 {{- end }}
