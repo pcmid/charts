@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lldap.fullname" . }}-web
+  labels:
+    {{- include "lldap.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.web.type }}
+  ports:
+    - port: {{ .Values.service.web.port | default 17170 }}
+      targetPort: web
+      protocol: TCP
+      name: web
+  selector:
+    {{- include "lldap.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lldap.fullname" . }}-ldap
+  labels:
+    {{- include "lldap.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.ldap.type }}
+  ports:
+    - port: {{ .Values.service.ldap.port | default 3890 }}
+      targetPort: ldap
+      protocol: TCP
+      name: ldap
+    {{- if .Values.ssl.enabled }}
+    - port: {{ .Values.service.ldap.sslPort | default 6360 }}
+      targetPort: ldaps
+      protocol: TCP
+      name: ldaps
+    {{- end }}
+  selector:
+    {{- include "lldap.selectorLabels" . | nindent 4 }}
