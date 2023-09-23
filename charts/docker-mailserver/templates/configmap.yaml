@@ -7,6 +7,7 @@ metadata:
   name: {{ template "dockermailserver.fullname" . }}-configs
 data:
   postfix-main.cf: |
+    # postfix-main.cf
     mydestination = localhost.$mydomain, localhost
   {{/* Enable proxy protocol for postscreen / dovecot */}}
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}  # Necessary to permit proxy protocol from haproxy to postscreen
@@ -17,6 +18,7 @@ data:
   {{- end }}
 
   postfix-master.cf: |
+    # postfix-master.cf
   {{- if index .Values.extraConfigFiles "postfix-master.cf" }}
     {{- get .Values.extraConfigFiles "postfix-master.cf" | nindent 4 }}
   {{- end }}
@@ -26,7 +28,14 @@ data:
     submissions/inet/smtpd_upstream_proxy_protocol=haproxy
   {{- end }}
 
+  dovecot.cf: |
+    # dovecot.cf
+  {{- if index .Values.extraConfigFiles "dovecot.cf" }}
+    {{- get .Values.extraConfigFiles "dovecot.cf" | nindent 4 }}
+  {{- end }}
+
   dovecot-services.conf: |
+    # dovecot-services.conf
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
     haproxy_trusted_networks = {{ .Values.proxyProtocol.trustedNetworks }}
   {{ end }}
@@ -70,10 +79,11 @@ data:
   {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
 
   {{/* https://doc.dovecot.org/configuration_manual/replication/ */}}
-  10-replication.conf: |
+  {{/* 
+  dovecot-replication.conf: |
     mail_plugins = $mail_plugins notify replication
 
-  80-replication.conf: |
+  dovecot-replication.conf: |
     service replicator {
       process_min_avail = 1
       unix_listener replicator-doveadm {
@@ -92,7 +102,7 @@ data:
     }
     
     doveadm_port = 4711
-    {{/* TODO: change default password */}}
+    # TODO: change default password
     doveadm_password = secret
 
     service doveadm {
@@ -110,8 +120,48 @@ data:
       mail_replica = tcp:{{ $name }}-{{ $index }}.{{ $name }}-headless
       {{- end }}
     }
+  */}}
 
-  91-override-sieve.conf: |
+  dovecot-director.conf: |
+    # dovecot-director.conf
+    director_mail_servers = {{ template "dockermailserver.fullname" . }}-headless
+    #director_consistent_hashing = yes
+    auth_socket_path = director-userdb
+    service director {
+      fifo_listener login/proxy-notify {
+        mode = 0600
+        user = $default_login_user
+      }
+      inet_listener {
+        port = 9090
+      }
+      unix_listener director-userdb {
+        mode = 0600
+      }
+      unix_listener login/director {
+        mode = 0666
+      }
+      unix_listener director-admin {
+        mode = 0600
+      }
+    }
+    service ipc {
+    unix_listener ipc {
+      user = dovecot
+    }
+    }
+    service imap-login {
+      executable = imap-login director
+    }
+    service pop3-login {
+      executable = pop3-login director
+    }
+    service managesieve-login {
+      executable = managesieve-login director
+    }
+
+  dovecot-override-sieve.conf: |
+    # dovecot-override-sieve.conf
     plugin {
       sieve = /var/mail/sieve/%d/%n/.dovecot.sieve
       sieve_dir = /var/mail/sieve/%d/%n/sieve

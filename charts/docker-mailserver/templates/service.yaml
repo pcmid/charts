@@ -82,7 +82,7 @@ spec:
   type: {{ default "ClusterIP" .Values.service.type }}
   {{ if eq .Values.service.type "LoadBalancer"  -}}
   {{- if .Values.service.loadBalancer.loadBalancerIP }}
-  loadBalancerIP: .Values.service.loadBalancer.loadBalancerIP
+  loadBalancerIP: {{ .Values.service.loadBalancer.loadBalancerIP }}
   {{- end }}
   {{- if .Values.service.loadBalancer.allowedIps }}
   loadBalancerSourceRanges:
@@ -110,6 +110,9 @@ spec:
     - protocol: "TCP"
       name: "tcp-dsync"
       port: 4711
+    - protocol: "TCP"
+      name: "tcp-director"
+      port: 9090
 ---
 kind: "Service"
 apiVersion: "v1"

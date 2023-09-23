@@ -8,7 +8,6 @@ dockermailserver:
     pullPolicy: "IfNotPresent"
   
   ## How many replicas of the deployment to run on kubernetes
-  ## Data will be synced by dsync (https://doc.dovecot.org/3.0/man/doveadm.1/)
   ## Default: 1
   replicas: 1
 
@@ -102,7 +101,8 @@ initContainer:
     privileged: false
 
 
-persistent:
+persistence:
+  #existingClaim: ""
   size: "10Gi"
   # storageClass: "-"
 
