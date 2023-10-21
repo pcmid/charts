@@ -76,52 +76,6 @@ data:
       }
     }
 
-  {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
-
-  {{/* https://doc.dovecot.org/configuration_manual/replication/ */}}
-  {{/* 
-  dovecot-replication.conf: |
-    mail_plugins = $mail_plugins notify replication
-
-  dovecot-replication.conf: |
-    service replicator {
-      process_min_avail = 1
-      unix_listener replicator-doveadm {
-        mode = 0600
-        user = docker
-      }
-    }
-
-    service aggregator {
-      fifo_listener replication-notify-fifo {
-        user = docker
-      }
-      unix_listener replication-notify {
-        user = docker
-      }
-    }
-    
-    doveadm_port = 4711
-    # TODO: change default password
-    doveadm_password = secret
-
-    service doveadm {
-      inet_listener {
-        port = 4711
-        {{- if .Values.ssl.enabled }}
-        ssl = yes
-        {{- end }}
-      }
-    }
-
-    plugin {
-      {{- $name := include "dockermailserver.fullname" . }}
-      {{- range $index := until (int .Values.dockermailserver.replicas) }}
-      mail_replica = tcp:{{ $name }}-{{ $index }}.{{ $name }}-headless
-      {{- end }}
-    }
-  */}}
-
   dovecot-director.conf: |
     # dovecot-director.conf
     director_mail_servers = {{ template "dockermailserver.fullname" . }}-headless
@@ -146,9 +100,9 @@ data:
       }
     }
     service ipc {
-    unix_listener ipc {
-      user = dovecot
-    }
+      unix_listener ipc {
+        user = dovecot
+      }
     }
     service imap-login {
       executable = imap-login director
@@ -199,3 +153,5 @@ data:
     {{ . }} && \
     {{- end }}
     echo "All healthy"
+
+  {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
