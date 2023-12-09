@@ -6,8 +6,8 @@ home: https://immich.app/
 sources:
   - https://github.com/pcmid/charts
   - https://github.com/immich-app/immich
-version: 0.2.2
-appVersion: 1.90.1
+version: 0.2.3
+appVersion: 1.90.2
 kubeVersion: ">=1.22.0-0"
 keywords:
   - immich
