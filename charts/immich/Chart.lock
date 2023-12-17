@@ -1,12 +1,9 @@
 dependencies:
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
-  version: 12.11.1
+  version: 12.12.10
 - name: redis
   repository: https://charts.bitnami.com/bitnami
-  version: 18.0.4
-- name: typesense
-  repository: https://charts.shabi.id/
-  version: 0.1.1
-digest: sha256:00de9ececd9cba4653c452858131defafe66dba55faaee838190e8ca24321300
-generated: "2023-09-15T10:11:16.276360925+08:00"
+  version: 18.5.0
+digest: sha256:6158ff3958541113a3679f8e53183ba9cf79354457be2c93a9e00deac1360a63
+generated: "2023-12-17T19:39:41.268918699+08:00"
