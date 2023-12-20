@@ -631,6 +631,21 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/immich-0.1.0/immich-0.1.0.tgz
     version: 0.1.0
+  lldap:
+  - apiVersion: v2
+    appVersion: 0.5.0
+    created: "2023-12-20T06:11:40.361304167Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: ^12
+    digest: ac1ac80fd8b0b9fb3742c4b10bbf6eade1f61fc7e292628364011adf940a2c02
+    name: lldap
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/lldap-0.1.0/lldap-0.1.0.tgz
+    version: 0.1.0
   typesense:
   - apiVersion: v2
     appVersion: 0.25.1
@@ -672,4 +687,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2023-12-18T08:27:31.787658335Z"
+generated: "2023-12-20T06:11:40.361357547Z"
