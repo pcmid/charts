@@ -1,0 +1,10 @@
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    {{- include "lldap.labels" . | nindent 4 }}
+  name: {{ template "lldap.fullname" . }}
+data:
+  lldap_config.toml: |
+    {{- .Values.config | nindent 4 }}

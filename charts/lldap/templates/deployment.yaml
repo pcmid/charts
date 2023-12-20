@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lldap.fullname" . }}
+  labels:
+    {{- include "lldap.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lldap.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "lldap.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lldap.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      enableServiceLinks: false
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - "/app/lldap"
+          args:
+            - "run"
+            - "--config-file"
+            - "/data/lldap_config.toml"
+          envFrom:
+            - secretRef:
+                name: {{ include "lldap.fullname" . }}
+          ports:
+            - name: web
+              containerPort: 17170
+              protocol: TCP
+            - name: ldap
+              containerPort: 3890
+              protocol: TCP
+            {{- if .Values.ssl.enabled }}
+            - name: ldaps
+              containerPort: 6360
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: web
+          readinessProbe:
+            httpGet:
+              path: /
+              port: web
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /data/lldap_config.toml
+              subPath: lldap_config.toml
+              readOnly: true
+            {{- if .Values.ssl.enabled }}
+            - name: ssl-cert
+              mountPath: /ssl
+              readOnly: true
+            {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "lldap.fullname" . }}
+            items:
+              - key: lldap_config.toml
+                path: lldap_config.toml
+
+        {{- if .Values.ssl.enabled }}
+        - name: "ssl-cert"
+          secret:
+            {{- if .Values.ssl.existingSecret }}
+            secretName: {{ .Values.ssl.existingSecret }}
+            {{- else }}
+            secretName: {{ include "lldap.fullname" . }}-ldaps-tls
+            {{- end }}
+        {{- end }}
