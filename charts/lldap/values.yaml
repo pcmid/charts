@@ -42,8 +42,8 @@ service:
     port: 80
   ldap:
     type: ClusterIP
-    port: 3890
-    sslPort: 6360
+    port: 389
+    sslPort: 636
 
 ingress:
   enabled: false
