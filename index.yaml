@@ -634,6 +634,20 @@ entries:
   lldap:
   - apiVersion: v2
     appVersion: 0.5.0
+    created: "2023-12-20T06:16:59.339765904Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: ^12
+    digest: f0106cb276f309af2c1f77171eb3c042f802461096de2d2e4f5e13b79e1933d5
+    name: lldap
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/lldap-0.1.1/lldap-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 0.5.0
     created: "2023-12-20T06:11:40.361304167Z"
     dependencies:
     - condition: postgresql.enabled
@@ -687,4 +701,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2023-12-20T06:11:40.361357547Z"
+generated: "2023-12-20T06:16:59.339797954Z"
