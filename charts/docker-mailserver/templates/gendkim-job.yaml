@@ -94,7 +94,7 @@ spec:
           - |
             echo "Generating dkim keys..."
             /scripts/gendkim.sh gen {{ join " " (.Values.domains | uniq) }}
-          image: "{{ .Values.dockermailserver.image.name }}:{{ .Values.dockermailserver.image.tag | default "latest" }}"
+          image: "{{ .Values.dockermailserver.image.name }}:{{ default .Chart.AppVersion .Values.dockermailserver.image.tag }}"
           imagePullPolicy: {{ .Values.dockermailserver.pullPolicy }}
           name: gendkim-generate
           securityContext:

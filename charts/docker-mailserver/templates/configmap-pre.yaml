@@ -7,7 +7,12 @@ metadata:
   name: {{ template "dockermailserver.fullname" . }}-configs
 data:
   postfix-main.cf: |
-    # postfix-main.cf
+    {{- range .Values.extraConfigFiles -}}
+      {{- if eq .name "postfix-master.cf" -}}
+        {{- .content | nindent 4 -}}
+      {{- end -}}
+    {{- end -}}
+
     mydestination = localhost.$mydomain, localhost
   {{/* Enable proxy protocol for postscreen / dovecot */}}
   {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}  # Necessary to permit proxy protocol from haproxy to postscreen
@@ -19,20 +24,55 @@ data:
 
   postfix-master.cf: |
     # postfix-master.cf
-  {{- if index .Values.extraConfigFiles "postfix-master.cf" }}
-    {{- get .Values.extraConfigFiles "postfix-master.cf" | nindent 4 }}
-  {{- end }}
+    {{- range .Values.extraConfigFiles -}}
+      {{- if eq .name "postfix-master.cf" -}}
+        {{- .content | nindent 4 -}}
+      {{- end -}}
+    {{- end -}}
+
     # Necessary to permit proxy protocol from haproxy to smtpd
-  {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+    {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
     submission/inet/smtpd_upstream_proxy_protocol=haproxy
     submissions/inet/smtpd_upstream_proxy_protocol=haproxy
-  {{- end }}
+    {{- end }}
 
-  dovecot.cf: |
-    # dovecot.cf
-  {{- if index .Values.extraConfigFiles "dovecot.cf" }}
-    {{- get .Values.extraConfigFiles "dovecot.cf" | nindent 4 }}
-  {{- end }}
+  dovecot-auth.conf: |
+    service auth {
+      # auth_socket_path points to this userdb socket by default. It's typically
+      # used by dovecot-lda, doveadm, possibly imap process, etc. Users that have
+      # full permissions to this socket are able to get a list of all usernames and
+      # get the results of everyone's userdb lookups.
+      #
+      # The default 0666 mode allows anyone to connect to the socket, but the
+      # userdb lookups will succeed only if the userdb returns an "uid" field that
+      # matches the caller process's UID. Also if caller's uid or gid matches the
+      # socket's uid or gid the lookup succeeds. Anything else causes a failure.
+      #
+      # To give the caller full permissions to lookup all users, set the mode to
+      # something else than 0666 and Dovecot lets the kernel enforce the
+      # permissions (e.g. 0777 allows everyone full permissions).
+      unix_listener auth-userdb {
+        mode = 0666
+        user = $default_internal_user
+        group = $default_internal_user
+      }
+
+      unix_listener auth-master {
+        mode = 0600
+        user = $default_internal_user
+        group = $default_internal_user
+      }
+
+      # Postfix smtp-auth
+      unix_listener /dev/shm/sasl-auth.sock {
+        mode = 0660
+        user = postfix
+        group = postfix
+      }
+
+      # Auth process is run as this user.
+      #user = $default_internal_user
+    }
 
   dovecot-services.conf: |
     # dovecot-services.conf
@@ -79,7 +119,6 @@ data:
   dovecot-director.conf: |
     # dovecot-director.conf
     director_mail_servers = {{ template "dockermailserver.fullname" . }}-headless
-    #director_consistent_hashing = yes
     auth_socket_path = director-userdb
     service director {
       fifo_listener login/proxy-notify {
@@ -91,17 +130,20 @@ data:
       }
       unix_listener director-userdb {
         mode = 0600
+        user = $default_internal_user
       }
       unix_listener login/director {
         mode = 0666
+        user = $default_internal_user
       }
       unix_listener director-admin {
         mode = 0600
+        user = $default_internal_user
       }
     }
     service ipc {
       unix_listener ipc {
-        user = dovecot
+        user = $default_internal_user
       }
     }
     service imap-login {
@@ -142,16 +184,11 @@ data:
         path = {{ $path }};
         selector = "mail";
       }
-    {{- end }}
+      {{- end }}
     }
 
   am-i-healthy.sh: |
     #!/bin/bash
     # this script is intended to be used by periodic kubernetes liveness probes to ensure that the container
     # (and all its dependent services) is healthy
-    {{ range .Values.livenessTests.commands -}}
-    {{ . }} && \
-    {{- end }}
-    echo "All healthy"
-
-  {{- (.Files.Get "config/fail2ban-*.cf") | nindent 2 }}
+    clamscan /tmp/docker-mailserver/TrustedHosts && echo "All healthy"

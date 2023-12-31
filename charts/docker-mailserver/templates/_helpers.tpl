@@ -57,6 +57,17 @@ Create chart name and version as used by the chart label.
 Create the name of the controller service account to use
 */}}
 {{- define "dockermailserver.serviceAccountName" -}}
-    {{ default (include "dockermailserver.fullname" .) .Values.dockermailserver.serviceAccount.name }}
+{{- default (include "dockermailserver.fullname" .) .Values.dockermailserver.serviceAccount.name }}
 {{- end -}}
 
+
+{{/*  skip postfix-main.cf and postfix-master.cf if they are in extraConfigFiles*/}}
+{{/*  They will be handled by the configmap-pre.yaml*/}}
+{{- define "dockermailserver.custom-configs" -}}
+{{- range $.Values.extraConfigFiles -}}
+{{- if not (has .name (list "postfix-main.cf" "postfix-master.cf")) -}}
+{{- .name }}: |
+{{- .content | nindent 2 }}
+{{ end }}
+{{- end }}
+{{- end }}

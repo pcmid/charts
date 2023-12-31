@@ -4,7 +4,7 @@ dockermailserver:
     # image.name is the name of the container image to use.
     name: "ghcr.io/docker-mailserver/docker-mailserver"
     # image.tag is the tag of the container image to use.
-    tag: "12.1.0"
+    tag: ""
     pullPolicy: "IfNotPresent"
   
   ## How many replicas of the deployment to run on kubernetes
@@ -105,9 +105,11 @@ persistence:
   #existingClaim: ""
   size: "10Gi"
   # storageClass: "-"
+  accessMode: "ReadWriteOnce"
 
   # Uncomment the backup.kubernetes.io/deltas annotation below if you use https://github.com/miracle2k/k8s-snapshots
   annotations: {}
+  # helm.sh/resource-policy: "keep"
   # backup.kubernetes.io/deltas: PT1H P2D P30D P180D
 
 
@@ -150,9 +152,6 @@ proxyProtocol:
 livenessTests:
   # livenessTests.enabled will add a liveness test, which will classify a pod as 'unhealthy' if any livenessTests.commands (below) return non-zero
   enabled: true
-  # livenessTests.commands is an array of commands to be executed within the docker-mailserver container, intended to prove that the container is healthy. Each command must exit 0 under normal (healthy) circumstances
-  commands:
-    - "clamscan /tmp/docker-mailserver/TrustedHosts"
 
 env:
   ## The following variables affect the behaviour of docker-mailserver
@@ -266,28 +265,32 @@ env:
 ## TODO:
 # copy to /tmp/docker-mailserver/
 extraConfigFiles:
-  "dovecot.cf": |
-    # dovecot.cf
+  - name: dovecot.cf
+    content: |
+      # dovecot.cf
 
-  "dovecot-quotas.cf": |
-    # dovecot-quotas.cf
+  - name: dovecot-quotas.cf
+    content: |
+      # dovecot-quotas.cf
 
-  "postfix-master.cf": |
-    # postfix-master.cf
+  - name: postfix-master.cf
+    content: |
+      # postfix-master.cf
 
-  "user-patches.sh": |
-    #!/bin/bash
-
-    # This user patches script runs right before starting the daemons.
-    # That means, all the other configuration is in place, so the script
-    # can make final adjustments.
-    # If you modify any supervisord configuration, make sure to run
-    # "supervisorctl update" or "supervisorctl reload" afterwards.
-
-    # For more information, see
-    # https://docker-mailserver.github.io/docker-mailserver/edge/config/advanced/override-defaults/user-patches/
-    
-    echo 'user-patches.sh successfully executed'
+  - name: user-patches.sh
+    content: |
+      #!/bin/bash
+      
+      # This user patches script runs right before starting the daemons.
+      # That means, all the other configuration is in place, so the script
+      # can make final adjustments.
+      # If you modify any supervisord configuration, make sure to run
+      # "supervisorctl update" or "supervisorctl reload" afterwards.
+      
+      # For more information, see
+      # https://docker-mailserver.github.io/docker-mailserver/edge/config/advanced/override-defaults/user-patches/
+      
+      echo 'user-patches.sh successfully executed'
 
 
 service:
