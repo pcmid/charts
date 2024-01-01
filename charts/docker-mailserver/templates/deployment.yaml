@@ -66,7 +66,7 @@ spec:
             {{- if .Values.ssl.existingSecret }}
             secretName: {{ .Values.ssl.existingSecret }}
             {{- else }}
-            secretName: {{ template "dockermailserver.fullname"}}-tls
+            secretName: {{ template "dockermailserver.fullname" .}}-tls
             {{- end }}
         {{- end }}
       containers:

@@ -11,7 +11,7 @@ spec:
     name: {{ default "letsencrypt-staging" .Values.ssl.issuer.name }}
     kind: {{ default "ClusterIssuer" .Values.ssl.issuer.kind }}
   dnsNames:
-  {{- range .Values.domains .}}
+  {{- range .Values.domains }}
   - {{ . }}
   {{- end }}
 {{- end }}
