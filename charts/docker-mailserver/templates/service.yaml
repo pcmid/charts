@@ -35,7 +35,7 @@ spec:
       nodePort: {{ default "30587" .Values.service.nodePort.submission }}
       {{- end }}
     - protocol: "TCP"
-      name: "tcp-smtps"
+      name: "tcp-submissions"
       port: 465
       {{- if eq .Values.service.type "NodePort" }}
       nodePort: {{ default "30465" .Values.service.nodePort.smtps }}
@@ -113,45 +113,32 @@ spec:
     - protocol: "TCP"
       name: "tcp-director"
       port: 9090
----
-kind: "Service"
-apiVersion: "v1"
-metadata:
-  annotations:
-    ## These annontations mark the service as monitorable by Prometheus, both directly as a service level metric and
-    ## via the blackbox exporter. For more information, see
-    ## values.yaml
-    prometheus.io/scrape: {{ .Values.monitoring.service.scrape | quote }}
-    prometheus.io/probe: {{ .Values.monitoring.service.probe | quote }}
-    prometheus.io/path: {{ .Values.monitoring.service.path | quote }}
-    prometheus.io/port: {{ .Values.monitoring.service.port | quote }}
-    {{- range $key, $value := .Values.service.annotations }}
-    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
-    {{- end }}
-  labels:
-    {{- include "dockermailserver.labels" . | nindent 4 }}
-    app.kubernetes.io/component: dockermailserver
-  name: {{ template "dockermailserver.fullname" . }}-normal
-spec:
-  externalTrafficPolicy: Cluster
-  selector:
-    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: dockermailserver
-  ports:
-    - protocol: "TCP"
-      name: "tcp-managesieve"
-      port: 4190
     {{- if .Values.metrics.enabled }}
     - name: tcp-metrics
       port: 9154
       protocol: TCP
       targetPort: 9154
     {{- end }}
-
-  type: {{ default "ClusterIP" .Values.service.type }}
-  {{ if eq .Values.service.type "LoadBalancer"  -}}
-  {{- if .Values.service.loadBalancer.allowedIps }}
-  loadBalancerSourceRanges:
-  {{ .Values.service.loadBalancer.allowedIps | toYaml | indent 4 }}
-  {{- end }}
-  {{- end }}
+---
+{{- if .Values.metrics.enabled }}
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  annotations:
+    {{- range $key, $value := .Values.service.annotations }}
+    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}-metrics
+spec:
+  selector:
+    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  ports:
+    - name: tcp-metrics
+      port: 9154
+      protocol: TCP
+      targetPort: 9154
+{{- end }}

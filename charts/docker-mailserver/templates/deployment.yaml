@@ -76,6 +76,14 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- if .Values.ssl.enabled }}
+            - name: SSL_TYPE
+              value: manual
+            - name: SSL_CERT_PATH
+              value: /tmp/ssl/tls.crt
+            - name: SSL_KEY_PATH
+              value: /tmp/ssl/tls.key
+            {{- end }}
           image: {{ .Values.dockermailserver.image.name }}:{{ default .Chart.AppVersion .Values.dockermailserver.image.tag }}
           imagePullPolicy: {{ .Values.dockermailserver.image.pullPolicy }}
           resources:
@@ -127,7 +135,7 @@ spec:
             # dovecot
             - name: pre-configs
               subPath: dovecot-services.conf
-              mountPath: /etc/dovecot/conf.d/00-services.conf
+              mountPath: /etc/dovecot/conf.d/11-services.conf
               readOnly: true
             {{- if gt .Values.dockermailserver.replicas 1.0 }}
             - name: pre-configs
