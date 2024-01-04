@@ -94,6 +94,36 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/coredns-id-0.0.1/coredns-id-0.0.1.tgz
     version: 0.0.1
+  docker-mailserver:
+  - apiVersion: v2
+    appVersion: 13.1.0
+    created: "2024-01-04T07:57:47.429018875Z"
+    dependencies:
+    - alias: haproxy
+      condition: haproxy.enabled
+      name: kubernetes-ingress
+      repository: https://haproxytech.github.io/helm-charts
+      version: 1.21.1
+    description: A fullstack but simple mailserver (smtp, imap, antispam, antivirus,
+      ssl...) using Docker.
+    digest: 02eec66a5c0bf8a709add9a32c362a9dcc157225dd640eb48e45e849da059dbe
+    home: https://github.com/pcmid/charts/docker-mailserver
+    icon: https://avatars.githubusercontent.com/u/76868633?s=400&v=4
+    keywords:
+    - mailserver
+    - postfix
+    - dovecot
+    - amavis
+    - imap
+    maintainers:
+    - email: plzcmid@gmail.com
+      name: pcmid
+    name: docker-mailserver
+    sources:
+    - https://github.com/pcmid/charts/docker-mailserver
+    urls:
+    - https://github.com/pcmid/charts/releases/download/docker-mailserver-3.0.1/docker-mailserver-3.0.1.tgz
+    version: 3.0.1
   immich:
   - apiVersion: v2
     appVersion: 1.91.4
@@ -731,4 +761,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2023-12-20T08:49:43.567584851Z"
+generated: "2024-01-04T07:57:47.429091702Z"
