@@ -128,7 +128,10 @@ domains: []
 spfTestsDisabled: false
 
 # List extra RBL domains to use for hard reject filtering
-rblRejectDomains: []
+rblRejectDomains:
+  # It is not recommanded to use zen.spamhaus.org as dnsbl under open resolver, like Google DNS, Cloudflare DNS.
+  - zen.spamhaus.org
+  - bl.spamcop.net
 
 ## These values define how the certificate created by the chart is processed by cert-manager
 ## Ensure you've set up your ClusterIssuers (letsencrypt-staging and letsencrypt-prod) and DNS provider

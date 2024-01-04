@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-kind: "Deployment"
+kind: "StatefulSet"
 metadata:
   labels:
     {{- include "dockermailserver.labels" . | nindent 4 }}
@@ -41,8 +41,10 @@ spec:
             {{- end }}
         - name: "config"
           emptyDir: {}
+        {{- if not .Values.persistence.mailState.enabled }}
         - name: "mail-state"
           emptyDir: {}
+        {{- end }}
         - name: "log"
           emptyDir: {}
         - name: "pre-configs"
@@ -228,3 +230,17 @@ spec:
               readOnly: true
         {{- end }}
       restartPolicy: "Always"
+  volumeClaimTemplates:
+  {{- if .Values.persistence.mailState.enabled }}
+  - metadata:
+      name: mail-state
+      annotations:
+        {{- toYaml .Values.dockermailserver.annotations | nindent 10 }}
+    spec:
+      accessModes:
+        - {{ default "ReadWriteOnce" .Values.persistence.mailState.accessModes }}
+      storageClassName: {{ default "" .Values.persistence.mailState.storageClassName }}
+      resources:
+        requests:
+          storage: {{ default "1Gi" .Values.persistence.mailState.size }}
+  {{- end }}

@@ -8,7 +8,7 @@ metadata:
 data:
   postfix-main.cf: |
     {{- range .Values.extraConfigFiles -}}
-      {{- if eq .name "postfix-master.cf" -}}
+      {{- if eq .name "postfix-main.cf" -}}
         {{- .content | nindent 4 -}}
       {{- end -}}
     {{- end -}}
@@ -19,7 +19,7 @@ data:
     postscreen_upstream_proxy_protocol = haproxy
   {{- end }}
   {{- if not .Values.spfTestsDisabled }}
-    smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, reject_unknown_recipient_domain, reject_rbl_client zen.spamhaus.org, reject_rbl_client bl.spamcop.net{{ range .Values.rblRejectDomains }}, reject_rbl_client {{ . }}{{ end }}
+    smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, reject_unknown_recipient_domain{{ range .Values.rblRejectDomains }}, reject_rbl_client {{ . }}{{ end }}
   {{- end }}
 
   postfix-master.cf: |
