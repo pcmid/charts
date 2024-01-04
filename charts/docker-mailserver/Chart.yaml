@@ -1,0 +1,25 @@
+apiVersion: v2
+appVersion: "13.1.0"
+description: A fullstack but simple mailserver (smtp, imap, antispam, antivirus, ssl...) using Docker.
+name: docker-mailserver
+version: 3.0.1
+sources:
+- https://github.com/pcmid/charts/docker-mailserver
+maintainers:
+- name: pcmid
+  email: plzcmid@gmail.com
+keywords:
+- mailserver
+- postfix
+- dovecot
+- amavis
+- imap
+home: https://github.com/pcmid/charts/docker-mailserver
+icon: https://avatars.githubusercontent.com/u/76868633?s=400&v=4
+
+dependencies:
+  - name: "kubernetes-ingress"
+    version: "1.21.1"
+    repository: "https://haproxytech.github.io/helm-charts"
+    condition: haproxy.enabled
+    alias: "haproxy"

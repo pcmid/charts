@@ -1,0 +1,406 @@
+---
+dockermailserver:
+  image:
+    # image.name is the name of the container image to use.
+    name: "ghcr.io/docker-mailserver/docker-mailserver"
+    # image.tag is the tag of the container image to use.
+    tag: ""
+    pullPolicy: "IfNotPresent"
+  
+  ## How many replicas of the deployment to run on kubernetes
+  ## Default: 1
+  replicas: 1
+
+  ## Add annotations to the instance
+  ## Useful for using something like stash to backup data (https://stash.run/docs/v0.9.0-rc.0/guides/latest/auto-backup/workload/)
+  annotations: {}  
+
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+
+  ## create or use exist name
+  serviceAccount:
+    create: true
+    name: ""
+
+  ## Configuration for the container security policy.
+  ##
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    readOnlyRootFilesystem: false # incompatible with the way docker-mailserver works
+    privileged: false
+
+  ## More generally, a "request" can be thought of as "how much is this container expected to need usually". it should be
+  ## possible to burst outside these constraints (during a high load operation). However, Kubernetes may kill the pod
+  ## if the node is under too higher load and the burst is outside its request
+  ##
+  ## Limits are hard limits. Violating them is either impossible, or results in container death. I'm not sure whether
+  ## making these optional is a good idea or not; at the moment, I think I'm happy to defer QOS to the cluster and try
+  ## and keep requests close to usage.
+  ##
+  ## Requests are what are used to determine whether more software "fits" onto the cluster.
+  ##
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ## Ref: https://github.com/kubernetes/kubernetes/blob/master/docs/design/resource-qos.md
+  ## Ref: https://docs.docker.com/engine/reference/run/#/runtime-constraints-on-resources
+  resources:
+    requests:
+      ## How much CPU this container is expected to need
+      cpu: "1"
+      ## How much memory this container is expected to need.
+      ## Reduce these at requests your peril - too few resources can cause daemons (i.e., clamd) to fail, or timeouts to occur.
+      ## A test installation with clamd running was killed when it consumed 1437Mi (which is why this value was increased to 1536)
+      memory: "1536Mi"
+    limits:
+      ## The max CPU this container should be allowed to use
+      cpu: "2"
+      ## The max memory this container should be allowed to use. Note: If a container exceeds its memory limit,
+      ## it may be terminated.
+      memory: "2048Mi"
+
+gendkim:
+  job:
+    enabled: true
+
+    ## Annotations to apply to the gendkim-job.
+    ##
+    annotations: {}
+    #  argocd.argoproj.io/hook: PostSync
+    #  argocd.argoproj.io/hook-delete-policy: HookSucceeded
+
+    publishImage:
+      repository: bitnami/kubectl
+      # tag: latest
+      pullPolicy: IfNotPresent
+
+  securityContext:
+    runAsUser: 1001
+    runAsGroup: 1001
+
+initContainer:
+  image:
+    name: "busybox"
+    tag: "stable"
+    pullPolicy: "IfNotPresent"
+  # These resources refer specifically to the _init container_, which needs only _puny_ resources,
+  # since all it does is copy the config into place
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "50m"
+      memory: "64Mi"
+
+  securityContext:
+    readOnlyRootFilesystem: true
+    privileged: false
+
+
+persistence:
+  #existingClaim: ""
+  size: "10Gi"
+  # storageClass: "-"
+  accessMode: "ReadWriteOnce"
+
+  # Uncomment the backup.kubernetes.io/deltas annotation below if you use https://github.com/miracle2k/k8s-snapshots
+  annotations: {}
+  # helm.sh/resource-policy: "keep"
+  # backup.kubernetes.io/deltas: PT1H P2D P30D P180D
+
+
+# List all the domains to be used below - this is necessary to correctly configure DKIM keys for email signing
+# domains is the list of domains to be served by your docker-mailserver instance
+domains: []
+#  - your-first-domain.com
+#  - your-second-domain.com
+
+# If you choose _not_ to use haproxy, and you're not exposing your services with a load-balanced service
+# with an external traffic policy in "Local" mode, you risk having the source IP of incoming mail overwritten
+# with a local Kubernetes cluster IP, as part of the ingress routing of the connection. This, in turn,
+# will cause all incoming to appear to be coming from an internal IP, causing SPF tests to fail.
+# Disable the following to bypass SPF tests altogether, to accommodate this scenario.
+# spfTestsDisabled will ignore all SPF-based spam tests, in the event that you cannot obtain valid source IP details on ingress emails
+spfTestsDisabled: false
+
+# List extra RBL domains to use for hard reject filtering
+rblRejectDomains:
+  # It is not recommanded to use zen.spamhaus.org as dnsbl under open resolver, like Google DNS, Cloudflare DNS.
+  - zen.spamhaus.org
+  - bl.spamcop.net
+
+## These values define how the certificate created by the chart is processed by cert-manager
+## Ensure you've set up your ClusterIssuers (letsencrypt-staging and letsencrypt-prod) and DNS provider
+ssl:
+  enabled: false
+  issuer:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  domain: example.com
+  existingSecret: ""
+
+proxyProtocol:
+  enabled: false
+  # These values populate dovecot's list of networks it'll "trust" for incoming haproxy connections.
+  # A space-separated list, on a single line, is required
+  # By default, we allow all RFC1918 private ranges, but this can be tightened up for the known IP/range
+  # of your HAProxy instance
+  # haproxy.trustedNetworks is the list of sources (in CIDR format, space-separated) to permit haproxy PROXY protocol from
+  trustedNetworks: "10.0.0.0/8 192.168.0.0/16 172.16.0.0/16"
+
+livenessTests:
+  # livenessTests.enabled will add a liveness test, which will classify a pod as 'unhealthy' if any livenessTests.commands (below) return non-zero
+  enabled: true
+
+env:
+  ## The following variables affect the behaviour of docker-mailserver
+  ## See https://docker-mailserver.github.io/docker-mailserver/latest/config/environment/ for details
+  ## Note that docker-mailserver expects most true/false values to present as 0 or 1, so that's how you should adjust the values below
+  ## Although it's inconsistent with the way the rest of values.yaml is structured, this has
+  ## been intentionally to maintain consistency with dockrer-mailserver scripts and documentation
+
+  # pod.dockermailserver.override_hostname sets the hostname (and therefore the SMTP banner) of the docker-mailserver pod
+  OVERRIDE_HOSTNAME: "mail.batcave.org"
+  ACCOUNT_PROVISIONER: FILE
+  DMS_DEBUG: 0
+  ONE_DIR: 1
+  LOG_LEVEL: warn
+  SMTP_ONLY: 0
+  TZ:
+
+  ## Whether to enable fail2ban. Only makes sense if you're running services in host mode without haproxy.
+  ## Default false
+  ENABLE_FAIL2BAN: 0
+
+  ## default use Rspamd
+  ENABLE_RSPAMD: 1
+  ENABLE_RSPAMD_REDIS: 1
+  ENABLE_CLAMAV: 1
+
+  ## to use Rspamd, the bellow show be disabled
+  ENABLE_OPENDKIM: 0
+  ENABLE_AMAVIS: 0
+  ENABLE_SPAMASSASSIN: 0
+  ENABLE_OPENDMARC: 0
+  ENABLE_POLICYD_SPF: 0
+
+  ## disabled components
+  ENABLE_SRS: 0
+  ENABLE_POP3: 0
+
+  SPOOF_PROTECTION: 1
+
+
+  ## LDAP
+  ENABLE_LDAP:
+  LDAP_START_TLS: # must be "yes" or "no" - quoted strings
+  LDAP_SERVER_HOST:
+  LDAP_SEARCH_BASE:
+  LDAP_BIND_DN:
+  LDAP_BIND_PW:
+  LDAP_QUERY_FILTER_USER:
+  LDAP_QUERY_FILTER_GROUP:
+  LDAP_QUERY_FILTER_ALIAS:
+  LDAP_QUERY_FILTER_DOMAIN:
+
+  ## RELAY
+  DEFAULT_RELAY_HOST:
+  RELAY_HOST:
+  RELAY_PORT: 25
+  RELAY_USER:
+  RELAY_PASSWORD:
+
+  PERMIT_DOCKER:
+  VIRUSMAILS_DELETE_DELAY:
+  ENABLE_POSTFIX_VIRTUAL_TRANSPORT:
+  POSTFIX_DAGENT:
+  POSTFIX_MAILBOX_SIZE_LIMIT:
+  POSTFIX_MESSAGE_SIZE_LIMIT:
+  ENABLE_MANAGESIEVE:
+  POSTMASTER_ADDRESS: "postmaster@domain.com"
+  POSTSCREEN_ACTION: "enforce"
+  REPORT_RECIPIENT:
+  REPORT_SENDER:
+  REPORT_INTERVAL: "daily"
+  SA_SPAM_TO_INBOX: 1
+  SA_MOVE_SPAM_TO_JUNK: 0
+  SA_TAG: 2.0
+  SA_TAG2: 6.31
+  SA_KILL: 6.31
+  SA_SPAM_SUBJECT: "*** SPAM ***"
+  ENABLE_FETCHMAIL: 0
+  FETCHMAIL_POLL: 300
+
+  DOVECOT_TLS:
+    #DOVECOT_LDAP_VERSION: 3
+  DOVECOT_DEFAULT_PASS_SCHEME:
+  DOVECOT_AUTH_BIND:
+  DOVECOT_USER_FILTER:
+  DOVECOT_USER_ATTRS:
+  DOVECOT_PASS_FILTER:
+  DOVECOT_PASS_ATTRS:
+  DOVECOT_MAILBOX_FORMAT:
+  ENABLE_POSTGREY: 0
+  POSTGREY_DELAY: 300
+  POSTGREY_MAX_AGE: 35
+  POSTGREY_AUTO_WHITELIST_CLIENTS: 5
+  POSTGREY_TEXT: "delayed by postgrey"
+  PFLOGSUMM_TRIGGER:
+  PFLOGSUMM_RECIPIENT:
+  ENABLE_SASLAUTHD: 0
+  SASLAUTHD_MECHANISMS:
+  SASLAUTHD_MECH_OPTIONS:
+  SASLAUTHD_LDAP_SERVER:
+  SASLAUTHD_LDAP_SSL:
+  SASLAUTHD_LDAP_BIND_DN:
+  SASLAUTHD_LDAP_PASSWORD:
+  SASLAUTHD_LDAP_SEARCH_BASE:
+  SASLAUTHD_LDAP_FILTER:
+  SASL_PASSWD:
+  SRS_EXCLUDE_DOMAINS:
+  SRS_SECRET:
+  SRS_DOMAINNAME:
+
+
+## TODO:
+# copy to /tmp/docker-mailserver/
+extraConfigFiles:
+  - name: dovecot.cf
+    content: |
+      # dovecot.cf
+
+  - name: dovecot-quotas.cf
+    content: |
+      # dovecot-quotas.cf
+
+  - name: postfix-master.cf
+    content: |
+      # postfix-master.cf
+
+  - name: user-patches.sh
+    content: |
+      #!/bin/bash
+      
+      # This user patches script runs right before starting the daemons.
+      # That means, all the other configuration is in place, so the script
+      # can make final adjustments.
+      # If you modify any supervisord configuration, make sure to run
+      # "supervisorctl update" or "supervisorctl reload" afterwards.
+      
+      # For more information, see
+      # https://docker-mailserver.github.io/docker-mailserver/edge/config/advanced/override-defaults/user-patches/
+      
+      echo 'user-patches.sh successfully executed'
+
+
+service:
+  ## What scope the service should be exposed in. One of:
+  ## - LoadBalancer (to the world)
+  ## - ClusterIP (to the cluster)
+  type: "LoadBalancer"
+  ## If there is a port associated with a given service, expose it here.
+  # port:
+  ## If there is a particular IP that should be used for the service, specify it here.
+  ## Note: It's quite unlikely that an IP should be specific. Normally, the best thing to do is leave it to Kubernetes
+  ##       to allocate a free IP from the pool.
+  ## Default: Automatically assign a random IP
+  # privateIp:
+  ## Only relevant if the `type` above is "LoadBalancer"
+  loadBalancer:
+    ## Deprecated:
+    ## This field was under-specified and its meaning varies across implementations, and it cannot support dual-stack.
+    ## As of Kubernetes v1.24, users are encouraged to use implementation-specific annotations when available.
+    ## This field may be removed in a future API version.
+    ## If there is already a reserved public IP that this load balancer should use, indicate it here.
+    ## Default: Automatically assign a random, ephemeral IP
+    # loadBalancerIP:
+    ## If there should be firewall rules restricting the load balancer to a limited set of IPs, specify those IPs below
+    ## in CIDR format. If all IPs shoud be allowed access, set the CIDR as "0.0.0.0/0"
+    allowedIps:
+      - "0.0.0.0/0"
+    ## If there is a Hostname associated with this site, add it here and it will be rendered in the documentation.
+    # hostName:
+  annotations: {}
+    # loadbalancer.openstack.org/proxy-protocol: "true"
+
+## Monitoring adds the prometheus.io annotations to pods and services, so that the Prometheus Kubernetes SD mechanism
+## as configured in the examples will automatically discover both the pods and the services to query.
+##
+## This defaults on, as the annotations should do no harm where Prometheus is not available but will automatically
+## expose the application where Prometheus is.
+##
+## See https://github.com/prometheus/docs/blob/master/content/docs/operating/configuration.md
+## See https://github.com/prometheus/prometheus/blob/master/documentation/examples/prometheus-kubernetes.yml
+monitoring:
+  ## Whether to scrape this service with the montoring toolkit. Mostly useful for blackbox probing of a given service
+  ## to ensure it's "up"
+  service:
+    ## monitoring should be configured to only scrape services that have a value of "true"
+    scrape: "true"
+    ## monitoring should be configured to only probe services that have a value of "true"
+    probe: "false"    
+    ## Path on which metrics are exposed
+    path: "/metrics"
+    ## Port on which HTTP server is served
+    port: "9102"
+  ## Whether to scape the pods associated with this application. Useful for collecting metrics.
+  pod:
+    ## monitoring shoudl be configured to only scrape pods that have a value of `true`
+    scrape: "true"
+    ## monitoring should be configured to only probe services that have a value of "true"
+    probe: "false"    
+    ## Path on which metrics are exposed
+    path: "/metrics"
+    ## Port on which HTTP server is served
+    port: "9102"
+
+
+## These values are for the haproxy sub-chart
+haproxy:
+  # haproxy.enabled will deploy an haproxy sub-chart, configured for the TCP ports used by docker-mailserver
+  enabled: false
+  controller:
+    replicaCount: 1
+    kind: "Deployment"
+    enableStaticPorts: false
+    tcp:
+      25: "default/docker-mailserver:25::PROXY-V1"
+      110: "default/docker-mailserver:110::PROXY-V1"
+      143: "default/docker-mailserver:143::PROXY-V1"            
+      465: "default/docker-mailserver:465"
+      587: "default/docker-mailserver:587"
+      993: "default/docker-mailserver:993::PROXY-V1"  
+      995: "default/docker-mailserver:995::PROXY-V1"     
+    service:
+      externalTrafficPolicy: "Local"
+    # Set to avoid CI error when running the generated manifest through kubeval (FIXME)
+    podAnnotations: 
+      set-to-avoid-lint-errors-in: "docker-mailserver"
+
+  defaultBackend:
+    replicaCount: 1
+
+# when metrics is enabled, we mount subpath log from pvc into /var/log/mail
+metrics:
+  enabled: false
+  image:
+    name: blackflysolutions/postfix-exporter@sha256
+    tag: 7ed7c0534112aff5b44757ae84a206bf659171631edfc325c3c1638d78e74f73
+    pullPolicy: "IfNotPresent"
+
+  resources:
+    requests:
+      memory: "256Mi"
+    #  cpu: "100M"
+    #limits:
+    #  memory: "256Mi"
+    #  cpu: "500M"
+
+  serviceMonitor:
+    enabled: false
+    scrapeInterval: 15s
+

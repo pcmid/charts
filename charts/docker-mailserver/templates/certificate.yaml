@@ -1,0 +1,18 @@
+{{- if and .Values.ssl.enabled (not .Values.ssl.existingSecret ) -}}
+{{- if .Values.domains }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ template "dockermailserver.fullname" . }}-tls
+spec:
+  secretName: {{ template "dockermailserver.fullname" . }}-tls
+  issuerRef:
+    name: {{ default "letsencrypt-staging" .Values.ssl.issuer.name }}
+    kind: {{ default "ClusterIssuer" .Values.ssl.issuer.kind }}
+  dnsNames:
+  {{- range .Values.domains }}
+  - {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

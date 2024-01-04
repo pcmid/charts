@@ -1,0 +1,21 @@
+{{- if  .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}
+spec:
+  endpoints:
+    - interval: {{ .Values.metrics.serviceMonitor.scrapeInterval }}
+      path: /metrics
+      port: tcp-metrics
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "dockermailserver.labels" . | nindent 6 }}
+      app.kubernetes.io/component: dockermailserver
+{{- end }}

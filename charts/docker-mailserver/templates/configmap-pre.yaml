@@ -1,0 +1,194 @@
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+  name: {{ template "dockermailserver.fullname" . }}-configs
+data:
+  postfix-main.cf: |
+    {{- range .Values.extraConfigFiles -}}
+      {{- if eq .name "postfix-main.cf" -}}
+        {{- .content | nindent 4 -}}
+      {{- end -}}
+    {{- end -}}
+
+    mydestination = localhost.$mydomain, localhost
+  {{/* Enable proxy protocol for postscreen / dovecot */}}
+  {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}  # Necessary to permit proxy protocol from haproxy to postscreen
+    postscreen_upstream_proxy_protocol = haproxy
+  {{- end }}
+  {{- if not .Values.spfTestsDisabled }}
+    smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, reject_unknown_recipient_domain{{ range .Values.rblRejectDomains }}, reject_rbl_client {{ . }}{{ end }}
+  {{- end }}
+
+  postfix-master.cf: |
+    # postfix-master.cf
+    {{- range .Values.extraConfigFiles -}}
+      {{- if eq .name "postfix-master.cf" -}}
+        {{- .content | nindent 4 -}}
+      {{- end -}}
+    {{- end -}}
+
+    # Necessary to permit proxy protocol from haproxy to smtpd
+    {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+    submission/inet/smtpd_upstream_proxy_protocol=haproxy
+    submissions/inet/smtpd_upstream_proxy_protocol=haproxy
+    {{- end }}
+
+  dovecot-auth.conf: |
+    service auth {
+      # auth_socket_path points to this userdb socket by default. It's typically
+      # used by dovecot-lda, doveadm, possibly imap process, etc. Users that have
+      # full permissions to this socket are able to get a list of all usernames and
+      # get the results of everyone's userdb lookups.
+      #
+      # The default 0666 mode allows anyone to connect to the socket, but the
+      # userdb lookups will succeed only if the userdb returns an "uid" field that
+      # matches the caller process's UID. Also if caller's uid or gid matches the
+      # socket's uid or gid the lookup succeeds. Anything else causes a failure.
+      #
+      # To give the caller full permissions to lookup all users, set the mode to
+      # something else than 0666 and Dovecot lets the kernel enforce the
+      # permissions (e.g. 0777 allows everyone full permissions).
+      unix_listener auth-userdb {
+        mode = 0666
+        user = $default_internal_user
+        group = $default_internal_user
+      }
+
+      unix_listener auth-master {
+        mode = 0600
+        user = $default_internal_user
+        group = $default_internal_user
+      }
+
+      # Postfix smtp-auth
+      unix_listener /dev/shm/sasl-auth.sock {
+        mode = 0660
+        user = postfix
+        group = postfix
+      }
+
+      # Auth process is run as this user.
+      #user = $default_internal_user
+    }
+
+  dovecot-services.conf: |
+    # dovecot-services.conf
+  {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+    haproxy_trusted_networks = {{ .Values.proxyProtocol.trustedNetworks }}
+  {{ end }}
+    service imap-login {
+      inet_listener imap {
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10143
+      {{- end }}
+      {{- if or .Values.ssl.enabled }}
+        ssl = yes
+      {{- end }}
+      }
+      inet_listener imaps {
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10993
+      {{- end }}
+        ssl = yes
+      }
+    }
+    service pop3-login {
+      inet_listener pop3 {
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10110
+      {{- end }}
+      {{- if or .Values.ssl.enabled }}
+        ssl = yes
+      {{- end }}
+      }
+      inet_listener pop3s {
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+        haproxy = yes
+        port = 10995
+      {{- end }}
+        ssl = yes
+      }
+    }
+
+  dovecot-director.conf: |
+    # dovecot-director.conf
+    director_mail_servers = {{ template "dockermailserver.fullname" . }}-headless
+    auth_socket_path = director-userdb
+    service director {
+      fifo_listener login/proxy-notify {
+        mode = 0600
+        user = $default_login_user
+      }
+      inet_listener {
+        port = 9090
+      }
+      unix_listener director-userdb {
+        mode = 0600
+        user = $default_internal_user
+      }
+      unix_listener login/director {
+        mode = 0666
+        user = $default_internal_user
+      }
+      unix_listener director-admin {
+        mode = 0600
+        user = $default_internal_user
+      }
+    }
+    service ipc {
+      unix_listener ipc {
+        user = $default_internal_user
+      }
+    }
+    service imap-login {
+      executable = imap-login director
+    }
+    service pop3-login {
+      executable = pop3-login director
+    }
+    service managesieve-login {
+      executable = managesieve-login director
+    }
+
+  dovecot-override-sieve.conf: |
+    # dovecot-override-sieve.conf
+    plugin {
+      sieve = /var/mail/sieve/%d/%n/.dovecot.sieve
+      sieve_dir = /var/mail/sieve/%d/%n/sieve
+    }
+
+  dkim_signing.conf: |
+    # documentation: https://rspamd.com/doc/modules/dkim_signing.html
+
+    enabled = true;
+
+    sign_authenticated = true;
+    sign_local = true;
+
+    use_domain = "header";
+    use_redis = false;   # don't change unless Redis also provides the DKIM keys
+    use_esld = true;
+
+    check_pubkey = true; # you wan't to use this in the beginning
+
+    domain {
+      {{- range $domain := .Values.domains }}
+      {{- $path := printf "/tmp/docker-mailserver/dkimkeys/%s/mail.private" . }}
+      {{ $domain }} {
+        path = {{ $path }};
+        selector = "mail";
+      }
+      {{- end }}
+    }
+
+  am-i-healthy.sh: |
+    #!/bin/bash
+    # this script is intended to be used by periodic kubernetes liveness probes to ensure that the container
+    # (and all its dependent services) is healthy
+    clamscan /tmp/docker-mailserver/TrustedHosts && echo "All healthy"

@@ -1,0 +1,144 @@
+---
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  annotations:
+    {{- range $key, $value := .Values.service.annotations }}
+    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}-mail
+spec:
+  ## If a load balancer is being used, ensure that the newer type of LB that passes along IP information is used
+  ## rather than the legacy one.
+  {{- if and (eq .Values.service.type "LoadBalancer") (not .Values.proxyProtocol.enabled) }}
+  externalTrafficPolicy: Local
+  {{- else }}
+  externalTrafficPolicy: Cluster
+  {{ end }}
+  selector:
+    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  ports:
+    - protocol: "TCP"
+      name: "tcp-smtp"
+      port: 25
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30025" .Values.service.nodePort.smtp }}
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-submission"
+      port: 587
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30587" .Values.service.nodePort.submission }}
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-submissions"
+      port: 465
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30465" .Values.service.nodePort.smtps }}
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-pop3"
+      port: 110
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30110" .Values.service.nodePort.pop3 }}
+      {{- end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+      targetPort: 10110
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-pop3s"
+      port: 995
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30995" .Values.service.nodePort.pop3s }}
+      {{- end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+      targetPort: 10995
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-imap"
+      port: 143
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30143" .Values.service.nodePort.imap }}
+      {{- end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+      targetPort: 10143
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-imaps"
+      port: 993
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ default "30993" .Values.service.nodePort.imaps }}
+      {{- end }}
+      {{- if or .Values.haproxy.enabled .Values.proxyProtocol.enabled }}
+      targetPort: 10993
+      {{- end }}
+    - protocol: "TCP"
+      name: "tcp-managesieve"
+      port: 4190
+  type: {{ default "ClusterIP" .Values.service.type }}
+  {{ if eq .Values.service.type "LoadBalancer"  -}}
+  {{- if .Values.service.loadBalancer.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.loadBalancer.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.service.loadBalancer.allowedIps }}
+  loadBalancerSourceRanges:
+  {{ .Values.service.loadBalancer.allowedIps | toYaml | indent 4 }}
+  {{- end }}
+  {{- end }}
+---
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  annotations:
+    {{- range $key, $value := .Values.service.annotations }}
+    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}-headless
+spec:
+  selector:
+    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  clusterIP: None
+  ports:
+    - protocol: "TCP"
+      name: "tcp-dsync"
+      port: 4711
+    - protocol: "TCP"
+      name: "tcp-director"
+      port: 9090
+    {{- if .Values.metrics.enabled }}
+    - name: tcp-metrics
+      port: 9154
+      protocol: TCP
+      targetPort: 9154
+    {{- end }}
+---
+{{- if .Values.metrics.enabled }}
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  annotations:
+    {{- range $key, $value := .Values.service.annotations }}
+    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}-metrics
+spec:
+  selector:
+    {{- include "dockermailserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  ports:
+    - name: tcp-metrics
+      port: 9154
+      protocol: TCP
+      targetPort: 9154
+{{- end }}

@@ -1,0 +1,246 @@
+---
+apiVersion: apps/v1
+kind: "StatefulSet"
+metadata:
+  labels:
+    {{- include "dockermailserver.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dockermailserver
+  name: {{ template "dockermailserver.fullname" . }}
+  {{- if .Values.dockermailserver.annotations }}
+  annotations:
+    {{- toYaml .Values.dockermailserver.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.dockermailserver.replicas }}
+  serviceName: {{ template "dockermailserver.fullname" . }}-headless
+  selector:
+    matchLabels:
+      {{- include "dockermailserver.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dockermailserver
+  updateStrategy:
+    {{- toYaml .Values.dockermailserver.strategy | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- include "dockermailserver.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: dockermailserver
+      annotations:
+        {{- if .Values.dockermailserver.annotations }}
+          {{- toYaml .Values.dockermailserver.annotations | nindent 8 }}
+        {{- end }}
+        checksum/pre-configs: {{ include (print $.Template.BasePath "/configmap-pre.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ template "dockermailserver.serviceAccountName" . }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            {{- if .Values.persistence.existingClaim }}
+            claimName: {{ .Values.persistence.existingClaim }}
+            {{- else }}
+            claimName: {{ template "dockermailserver.fullname" . }}
+            {{- end }}
+        - name: "config"
+          emptyDir: {}
+        {{- if not .Values.persistence.mailState.enabled }}
+        - name: "mail-state"
+          emptyDir: {}
+        {{- end }}
+        - name: "log"
+          emptyDir: {}
+        - name: "pre-configs"
+          projected:
+            sources:
+            - configMap:
+                name: {{ template "dockermailserver.fullname" . }}-configs
+            - secret:
+                name: {{ template "dockermailserver.fullname" . }}-postfix-users
+        - name: "custom-configs"
+          projected:
+            sources:
+              - configMap:
+                  name: {{ template "dockermailserver.fullname" . }}-custom-configs
+        - name: "dkimkeys"
+          secret:
+            secretName: {{ template "dockermailserver.fullname" . }}-dkimkeys
+        {{- if .Values.ssl.enabled }}
+        - name: "ssl-cert"
+          secret:
+            {{- if .Values.ssl.existingSecret }}
+            secretName: {{ .Values.ssl.existingSecret }}
+            {{- else }}
+            secretName: {{ template "dockermailserver.fullname" .}}-tls
+            {{- end }}
+        {{- end }}
+      containers:
+        - name: dockermailserver
+          env:
+            {{- range $key, $value :=.Values.env}}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.ssl.enabled }}
+            - name: SSL_TYPE
+              value: manual
+            - name: SSL_CERT_PATH
+              value: /tmp/ssl/tls.crt
+            - name: SSL_KEY_PATH
+              value: /tmp/ssl/tls.key
+            {{- end }}
+          image: {{ .Values.dockermailserver.image.name }}:{{ default .Chart.AppVersion .Values.dockermailserver.image.tag }}
+          imagePullPolicy: {{ .Values.dockermailserver.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.dockermailserver.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.dockermailserver.securityContext | nindent 12 }}
+            {{- if eq .Values.env.ENABLE_FAIL2BAN 1.0 }}
+            capabilities:
+              add:
+                - NET_ADMIN
+            {{- end }}
+          volumeMounts:
+            - name: log
+              mountPath: /var/log/mail
+            - name: data
+              mountPath: /var/mail
+              subPath: mail
+            - name: mail-state
+              mountPath: /var/mail-state
+            {{- range $filename := keys (include "dockermailserver.custom-configs" . | fromYaml ) }}
+            - name: custom-configs
+              mountPath: /tmp/docker-mailserver/{{ $filename }}
+              subPath: {{ $filename }}
+            {{- end }}
+            {{- if .Values.ssl.enabled }}
+            - name: ssl-cert
+              mountPath: /tmp/ssl
+              readOnly: true
+            {{- end }}
+            # postfix
+            - name: pre-configs
+              subPath: postfix-master.cf
+              mountPath: /tmp/docker-mailserver/postfix-master.cf
+              readOnly: true
+            - name: pre-configs
+              subPath: postfix-main.cf
+              mountPath: /tmp/docker-mailserver/postfix-main.cf
+              readOnly: true
+            {{- if or (not .Values.env.ACCOUNT_PROVISIONER) (eq .Values.env.ACCOUNT_PROVISIONER "FILE")}}
+            - name: pre-configs
+              subPath: postfix-accounts.cf
+              mountPath: /tmp/docker-mailserver/postfix-accounts.cf
+              readOnly: true
+            - name: pre-configs
+              subPath: postfix-virtual.cf
+              mountPath: /tmp/docker-mailserver/postfix-virtual.cf
+              readOnly: true
+            {{- end }}
+            # dovecot
+            - name: pre-configs
+              subPath: dovecot-services.conf
+              mountPath: /etc/dovecot/conf.d/11-services.conf
+              readOnly: true
+            {{- if gt .Values.dockermailserver.replicas 1.0 }}
+            - name: pre-configs
+              subPath: dovecot-auth.conf
+              mountPath: /etc/dovecot/conf.d/11-auth.conf
+              readOnly: true
+            - name: pre-configs
+              subPath: dovecot-director.conf
+              mountPath: /etc/dovecot/conf.d/81-director.conf
+              readOnly: true
+            {{- end }}
+            - name: pre-configs
+              subPath: dovecot-override-sieve.conf
+              mountPath: /etc/dovecot/conf.d/91-override-sieve.conf
+              readOnly: true
+            # rspamd
+            - name: pre-configs
+              subPath: dkim_signing.conf
+              mountPath: /etc/rspamd/override.d/dkim_signing.conf
+              readOnly: true
+            # dkim
+            {{- range .Values.domains }}
+              {{- $path := printf "/tmp/docker-mailserver/dkimkeys/%s/mail.private" . }}
+              {{- $name := printf "%s" . }}
+            - name: dkimkeys
+              mountPath: {{ $path }}
+              subPath: {{ $name }}
+              readOnly: true
+            {{- end }}
+            - name: pre-configs
+              subPath: TrustedHosts
+              mountPath: /tmp/docker-mailserver/opendkim/TrustedHosts
+              readOnly: true
+            - name: pre-configs
+              subPath: SigningTable
+              mountPath: /tmp/docker-mailserver/opendkim/SigningTable
+              readOnly: true
+            - name: pre-configs
+              subPath: KeyTable
+              mountPath: /tmp/docker-mailserver/opendkim/KeyTable
+              readOnly: true
+            # extra
+            {{- if .Values.additionalVolumeMounts }}
+              {{ toYaml .Values.additionalVolumeMounts | indent 12 }}
+            {{- end }}
+          livenessProbe:
+            exec:
+               command:
+                 - /bin/bash
+                 - -c
+                 - supervisorctl status | grep -E "amavis|clamav|cron|dovecot|mailserver|rspamd|opendmarc|postfix|rsyslog" | grep RUNNING
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+               command:
+                 - /bin/bash
+                 - -c
+                 - supervisorctl status | grep -E "mailserver|postfix" | grep RUNNING
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+        {{- if .Values.metrics.enabled }}
+        - name: metrics-exporter
+          image: {{ .Values.metrics.image.name }}:{{ .Values.metrics.image.tag }}
+          imagePullPolicy: {{ .Values.metrics.image.pullPolicy }}
+          command: ["/bin/postfix_exporter"]
+          args: 
+            - "--postfix.showq_path"
+            - "/var/mail-state/spool-postfix/public/showq"
+            - "--postfix.logfile_path"
+            - "/var/log/mail/mail.log"
+          ports:
+            - containerPort: 9154
+              name: http
+              protocol: TCP
+          resources:
+            {{ toYaml .Values.metrics.resources | nindent 12 }}
+          securityContext:
+            {{ toYaml .Values.dockermailserver.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: log
+              mountPath: /var/log/mail
+              #subPath: log
+              readOnly: true
+            - name: mail-state
+              mountPath: /var/mail-state
+              #subPath: mail-state
+              readOnly: true
+        {{- end }}
+      restartPolicy: "Always"
+  volumeClaimTemplates:
+  {{- if .Values.persistence.mailState.enabled }}
+  - metadata:
+      name: mail-state
+      annotations:
+        {{- toYaml .Values.dockermailserver.annotations | nindent 10 }}
+    spec:
+      accessModes:
+        - {{ default "ReadWriteOnce" .Values.persistence.mailState.accessModes }}
+      storageClassName: {{ default "" .Values.persistence.mailState.storageClassName }}
+      resources:
+        requests:
+          storage: {{ default "1Gi" .Values.persistence.mailState.size }}
+  {{- end }}
