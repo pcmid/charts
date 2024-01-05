@@ -140,7 +140,8 @@ ssl:
   issuer:
     name: letsencrypt-staging
     kind: ClusterIssuer
-  domain: example.com
+  domains:
+  - example.com
   existingSecret: ""
 
 proxyProtocol:
