@@ -52,8 +52,10 @@ spec:
             sources:
             - configMap:
                 name: {{ template "dockermailserver.fullname" . }}-configs
+            {{- if eq .Values.env.ACCOUNT_PROVISIONER "FILE" }}
             - secret:
                 name: {{ template "dockermailserver.fullname" . }}-postfix-users
+            {{- end }}
         - name: "custom-configs"
           projected:
             sources:
