@@ -119,6 +119,7 @@ data:
   dovecot-director.conf: |
     # dovecot-director.conf
     director_mail_servers = {{ template "dockermailserver.fullname" . }}-headless
+    director_servers = {{ template "dockermailserver.fullname" . }}-headless
     auth_socket_path = director-userdb
     service director {
       fifo_listener login/proxy-notify {
