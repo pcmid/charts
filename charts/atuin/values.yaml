@@ -7,11 +7,11 @@
 
 image:
   # -- Image repository
-  repository: ghcr.io/ellie/atuin
+  repository: ghcr.io/atuinsh/atuin
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Image tag
-  tag: 14.0.1
+  tag: 17.2.1
 
 args: ["server", "start"]
 
