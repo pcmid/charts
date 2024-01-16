@@ -3,7 +3,7 @@ name: atuin
 description: Magical shell history
 home: https://charts.shabi.id/charts/atuin
 type: application
-version: 0.0.1
+version: 0.0.2
 appVersion: v17.2.1
 kubeVersion: ">=1.22.0-0"
 keywords:
