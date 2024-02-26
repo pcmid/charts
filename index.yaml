@@ -239,6 +239,36 @@ entries:
     version: 3.0.1
   immich:
   - apiVersion: v2
+    appVersion: 1.95.1
+    created: "2024-02-26T07:12:43.932779377Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: ^12
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: ^18
+    description: Self-hosted photo and video backup solution directly from your mobile
+      phone.
+    digest: 333f159f3be5ad1f40e4b1b33e33d8a5c59a2d78d8f53fcd7e0fd8d6dabf8941
+    home: https://immich.app/
+    keywords:
+    - immich
+    - photo
+    - video
+    - backup
+    kubeVersion: '>=1.22.0-0'
+    name: immich
+    sources:
+    - https://github.com/pcmid/charts
+    - https://github.com/immich-app/immich
+    type: application
+    urls:
+    - https://github.com/pcmid/charts/releases/download/immich-0.4.0/immich-0.4.0.tgz
+    version: 0.4.0
+  - apiVersion: v2
     appVersion: 1.94.1
     created: "2024-02-06T04:46:44.626243228Z"
     dependencies:
@@ -964,4 +994,4 @@ entries:
     urls:
     - https://github.com/pcmid/charts/releases/download/typesense-0.1.0/typesense-0.1.0.tgz
     version: 0.1.0
-generated: "2024-02-06T04:46:44.626382909Z"
+generated: "2024-02-26T07:12:43.932966977Z"
