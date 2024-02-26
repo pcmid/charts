@@ -148,7 +148,7 @@ postgresql:
   enabled: true
   image: 
     repository: tensorchord/pgvecto-rs
-    tag: pg15-v0.1.11
+    tag: pg15-v0.2.0
 
   auth:
     # XXX Change me!

@@ -37,9 +37,8 @@ spec:
           image: {{ .Values.image.repository }}/immich-server:{{ include "immich.tag" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
-            - "/bin/sh"
+            - "./start.sh"
           args:
-            - "start.sh"
             - "microservices"
           envFrom:
             - configMapRef:
