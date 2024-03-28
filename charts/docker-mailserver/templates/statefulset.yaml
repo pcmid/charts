@@ -151,10 +151,6 @@ spec:
               mountPath: /etc/dovecot/conf.d/81-director.conf
               readOnly: true
             {{- end }}
-            - name: pre-configs
-              subPath: dovecot-override-sieve.conf
-              mountPath: /etc/dovecot/conf.d/91-override-sieve.conf
-              readOnly: true
             # rspamd
             - name: pre-configs
               subPath: dkim_signing.conf
