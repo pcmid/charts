@@ -168,7 +168,6 @@ env:
   OVERRIDE_HOSTNAME: "mail.batcave.org"
   ACCOUNT_PROVISIONER: FILE
   DMS_DEBUG: 0
-  ONE_DIR: 1
   LOG_LEVEL: warn
   SMTP_ONLY: 0
   TZ:
@@ -232,7 +231,7 @@ env:
   SA_TAG: 2.0
   SA_TAG2: 6.31
   SA_KILL: 6.31
-  SA_SPAM_SUBJECT: "*** SPAM ***"
+  SPAM_SUBJECT: "*** SPAM ***"
   ENABLE_FETCHMAIL: 0
   FETCHMAIL_POLL: 300
 
